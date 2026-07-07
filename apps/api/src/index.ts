@@ -2,6 +2,7 @@ import { app } from './app.js';
 import { config } from './config/env.js';
 import { connectDatabase } from './config/db.js';
 import { User } from './models/User.js';
+import { Doctor } from './models/Doctor.js';
 import { hashPassword } from './utils/auth.js';
 
 /**
@@ -40,10 +41,61 @@ const seedDemoUsers = async () => {
   }
 };
 
+/**
+ * Seed demo doctors into the database.
+ */
+const seedDemoDoctors = async () => {
+  try {
+    const doctorCount = await Doctor.countDocuments();
+    if (doctorCount === 0) {
+      console.log('Seeding demo doctors to MongoDB...');
+      
+      const demoDoctors = [
+        {
+          firstName: 'John',
+          lastName: 'Adams',
+          specialization: 'Cardiology',
+          department: 'Cardiovascular Medicine',
+          experience: 12,
+          availability: ["09:00", "10:00", "11:00", "14:00", "15:00"],
+          consultationFee: 150,
+          status: 'active'
+        },
+        {
+          firstName: 'Emily',
+          lastName: 'Smith',
+          specialization: 'Pediatrics',
+          department: 'Pediatric Care',
+          experience: 8,
+          availability: ["09:00", "10:00", "11:00", "14:00", "15:00"],
+          consultationFee: 120,
+          status: 'active'
+        },
+        {
+          firstName: 'David',
+          lastName: 'Miller',
+          specialization: 'General Medicine',
+          department: 'Outpatient Clinic',
+          experience: 15,
+          availability: ["09:00", "10:00", "11:00", "14:00", "15:00"],
+          consultationFee: 80,
+          status: 'active'
+        }
+      ];
+
+      await Doctor.insertMany(demoDoctors);
+      console.log('Demo doctors seeded successfully!');
+    }
+  } catch (error) {
+    console.error('Failed to seed demo doctors:', error);
+  }
+};
+
 const startServer = async () => {
   try {
     await connectDatabase();
     await seedDemoUsers();
+    await seedDemoDoctors();
   } catch (error) {
     console.warn('MongoDB connection failed on start. Server will continue running.');
   }

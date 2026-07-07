@@ -3,6 +3,7 @@ import cors from 'cors';
 import healthRouter from './routes/health.js';
 import patientRouter from './routes/patient.js';
 import authRouter from './routes/auth.js';
+import appointmentRouter from './routes/appointment.js';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use('/api/v1', healthRouter);
 app.use('/api/v1', patientRouter);
 app.use('/api/v1', authRouter);
+app.use('/api/v1', appointmentRouter);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

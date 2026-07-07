@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, XCircle, RefreshCw, Cpu, Database, Activity, Terminal, UserPlus, Users, LogOut, Key } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, RefreshCw, Cpu, Database, Activity, Terminal, UserPlus, Users, LogOut, Key, Calendar } from 'lucide-react';
 import PatientRegistration from './components/PatientRegistration.tsx';
 import Login from './components/Login.tsx';
+import AppointmentManagement from './components/AppointmentManagement.tsx';
 
 interface HealthDetails {
   api: 'UP' | 'DOWN';
@@ -42,7 +43,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'health' | 'registration'>('registration');
+  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments'>('appointments');
 
   // Diagnostics State
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -253,6 +254,13 @@ export default function App() {
             {/* Navigation Tabs */}
             <div className="flex bg-slate-950 border border-slate-850 rounded-xl p-1">
               <button
+                onClick={() => setActiveTab('appointments')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'appointments' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Calendar className="w-4 h-4" />
+                Appointments
+              </button>
+              <button
                 onClick={() => setActiveTab('registration')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'registration' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
               >
@@ -336,6 +344,11 @@ export default function App() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Tab 1.5: Appointment Management */}
+        {activeTab === 'appointments' && (
+          <AppointmentManagement />
         )}
 
         {/* Tab 2: System Diagnostics */}
