@@ -1,0 +1,24 @@
+# Node modules
+node_modules/
+dist/
+build/
+.eslintcache
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.env
+
+# OS files
+.DS_Store
+Thumbs.db

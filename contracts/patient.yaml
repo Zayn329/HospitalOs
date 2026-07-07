@@ -1,0 +1,59 @@
+entity: Patient
+version: 1.0
+
+description: >
+  Represents an individual receiving medical care within HospitalOS.
+
+identifier:
+  field: hospitalId
+  generated: true
+  immutable: true
+
+required:
+  - firstName
+  - lastName
+  - gender
+  - dateOfBirth
+  - phone
+
+optional:
+  - email
+  - address
+  - bloodGroup
+  - allergies
+  - emergencyContact
+  - medicalHistory
+
+relationships:
+  appointments:
+    type: one-to-many
+    entity: Appointment
+
+  consultations:
+    type: one-to-many
+    entity: Consultation
+
+  prescriptions:
+    type: one-to-many
+    entity: Prescription
+
+  bills:
+    type: one-to-many
+    entity: Bill
+
+validation:
+
+  phone:
+    unique: true
+
+  hospitalId:
+    unique: true
+
+status:
+
+  - active
+  - inactive
+
+audit: true
+timestamps: true
+softDelete: false

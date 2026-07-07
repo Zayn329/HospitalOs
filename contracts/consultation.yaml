@@ -1,0 +1,52 @@
+entity: Consultation
+
+version: 1.0
+
+description: >
+  Represents the clinical interaction between a doctor and a patient.
+
+required:
+
+  - appointmentId
+
+  - patientId
+
+  - doctorId
+
+optional:
+
+  - symptoms
+
+  - diagnosis
+
+  - treatmentPlan
+
+relationships:
+
+  appointment:
+    entity: Appointment
+    type: one-to-one
+
+  patient:
+    entity: Patient
+    type: many-to-one
+
+  prescription:
+    entity: Prescription
+    type: one-to-many
+
+  labReports:
+    entity: LabReport
+    type: one-to-many
+
+status:
+
+  - open
+
+  - in_progress
+
+  - completed
+
+audit: true
+
+timestamps: true

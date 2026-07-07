@@ -1,0 +1,51 @@
+entity: Appointment
+version: 1.0
+
+description: >
+  Represents a scheduled consultation between a patient and a doctor.
+
+required:
+
+  - patientId
+  - doctorId
+  - appointmentDate
+  - appointmentTime
+
+optional:
+
+  - reason
+  - appointmentType
+
+relationships:
+
+  patient:
+    type: many-to-one
+    entity: Patient
+
+  doctor:
+    type: many-to-one
+    entity: Doctor
+
+  consultation:
+    type: one-to-one
+    entity: Consultation
+
+status:
+
+  - requested
+
+  - confirmed
+
+  - checked_in
+
+  - completed
+
+  - cancelled
+
+validation:
+
+  noDoubleBooking: true
+
+audit: true
+
+timestamps: true

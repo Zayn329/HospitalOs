@@ -1,0 +1,56 @@
+entity: Bill
+
+version: 1.0
+
+description: >
+  Represents the financial record generated after healthcare services are provided.
+
+required:
+
+  - patientId
+
+  - consultationId
+
+  - totalAmount
+
+optional:
+
+  - insuranceClaimId
+
+relationships:
+
+  patient:
+    entity: Patient
+    type: many-to-one
+
+  consultation:
+    entity: Consultation
+    type: one-to-one
+
+status:
+
+  payment:
+
+    - pending
+
+    - paid
+
+    - refunded
+
+  insurance:
+
+    - not_required
+
+    - pending
+
+    - approved
+
+    - rejected
+
+validation:
+
+  amountMustBePositive: true
+
+audit: true
+
+timestamps: true

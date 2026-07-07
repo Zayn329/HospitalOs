@@ -1,0 +1,44 @@
+entity: Prescription
+
+version: 1.0
+
+description: >
+  Represents medications prescribed during a consultation.
+
+required:
+
+  - consultationId
+
+  - patientId
+
+  - medications
+
+optional:
+
+  - instructions
+
+relationships:
+
+  consultation:
+    entity: Consultation
+    type: many-to-one
+
+  patient:
+    entity: Patient
+    type: many-to-one
+
+validation:
+
+  medicationRequired: true
+
+status:
+
+  - draft
+
+  - active
+
+  - completed
+
+audit: true
+
+timestamps: true

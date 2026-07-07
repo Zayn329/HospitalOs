@@ -1,0 +1,21 @@
+{
+  "name": "hospitalos-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:ai": "powershell -Command \"cd services/ai; & .venv/Scripts/python -m uvicorn main:app --reload --port 8000\"",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\" \"npm run dev:ai\"",
+    "setup:ai": "powershell -Command \"cd services/ai; python -m venv .venv; & .venv/Scripts/python -m pip install -r requirements.txt\"",
+    "install:all": "npm install --legacy-peer-deps && npm run setup:ai"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}
