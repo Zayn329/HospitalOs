@@ -272,7 +272,10 @@ router.post('/consultations/:id/complete', async (req: Request, res: Response, n
       // If override reason is provided, log to audit trail
       if (warnings.length > 0 && allergyOverrideReason) {
         const log = new AuditLog({
+          actorId: 'doctor_demo',
           action: 'OVERRIDE_ALLERGY_WARNING',
+          resource: 'Consultation',
+          resourceId: id,
           details: `Allergy warnings overridden for patient: ${patient.firstName} ${patient.lastName}. Reason: ${allergyOverrideReason}`,
           metadata: {
             consultationId: id,

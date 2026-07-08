@@ -107,6 +107,7 @@ router.post('/discharges', async (req: Request, res: Response, next: NextFunctio
 
     // Audit Log
     const log = new AuditLog({
+      actorId: 'discharge_staff_demo',
       action: 'APPROVE_DISCHARGE',
       details: `Approved patient discharge for patient ID: ${consultation.patientId}`,
       resource: 'Discharge',

@@ -122,6 +122,7 @@ router.post('/bills', async (req: Request, res: Response, next: NextFunction) =>
 
     // Audit Log
     const log = new AuditLog({
+      actorId: 'billing_staff_demo',
       action: 'GENERATE_BILL',
       details: `Generated bill for patient: ${consultation.patientId}. Total: $${totalAmount}`,
       resource: 'Bill',
@@ -187,6 +188,7 @@ router.post('/bills/:id/pay', async (req: Request, res: Response, next: NextFunc
 
     // Audit Log
     const log = new AuditLog({
+      actorId: 'billing_staff_demo',
       action: 'PROCESS_PAYMENT',
       details: `Processed payment of $${paymentAmount} for bill ID: ${bill._id}`,
       resource: 'Bill',
@@ -347,6 +349,7 @@ router.post('/bills/:id/verify-insurance', async (req: Request, res: Response, n
 
     // Audit Log
     const log = new AuditLog({
+      actorId: 'billing_staff_demo',
       action: 'INSURANCE_CLAIM_SUBMITTED',
       details: `Submitted insurance claim for Bill ID: ${bill._id}. Status: ${bill.insuranceStatus}`,
       resource: 'Bill',
