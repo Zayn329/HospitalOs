@@ -3,8 +3,7 @@ import json
 from typing import List, TypedDict, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from agents.llm import call_llm
 from langgraph.graph import StateGraph, END
 
 router = APIRouter(prefix="/api/v1/agent/diagnostics", tags=["diagnostics"])
@@ -26,38 +25,27 @@ def parse_report_node(state: DiagnosticsState) -> DiagnosticsState:
     extracted_values = []
     warnings = []
 
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are an expert Clinical Laboratory Scientist. Parse the following raw report text for test name: '{test_name}'.\n"
-                    "Extract each test metric, its measured value, reference ranges, and determine if it is out-of-bounds (abnormal).\n\n"
-                    "Report Text:\n{raw_text}\n\n"
-                    "Respond with a JSON block containing:\n"
-                    "1. 'is_abnormal': boolean (true if any value is out-of-range)\n"
-                    "2. 'extracted_values': array of objects, each containing: 'metric', 'value', 'reference_range', 'status' ('normal' or 'abnormal')\n"
-                    "3. 'warnings': list of warning messages for abnormal values.\n"
-                    "Do NOT use markdown code blocks. Respond with pure JSON."
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({"test_name": test_name, "raw_text": raw_text})
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-            data = json.loads(content)
-            
-            is_abnormal = data.get("is_abnormal", False)
-            extracted_values = data.get("extracted_values", [])
-            warnings = data.get("warnings", [])
-        except Exception as e:
-            print(f"Gemini parsing failed: {e}")
+    try:
+        system_prompt = (
+            f"You are an expert Clinical Laboratory Scientist. Parse the following raw report text for test name: '{test_name}'.\n"
+            "Extract each test metric, its measured value, reference ranges, and determine if it is out-of-bounds (abnormal).\n\n"
+            f"Report Text:\n{raw_text}\n\n"
+            "Respond with a JSON block containing:\n"
+            "1. 'is_abnormal': boolean (true if any value is out-of-range)\n"
+            "2. 'extracted_values': array of objects, each containing: 'metric', 'value', 'reference_range', 'status' ('normal' or 'abnormal')\n"
+            "3. 'warnings': list of warning messages for abnormal values.\n"
+            "Do NOT use markdown code blocks. Respond with pure JSON."
+        )
+        content = call_llm(system_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        
+        is_abnormal = data.get("is_abnormal", False)
+        extracted_values = data.get("extracted_values", [])
+        warnings = data.get("warnings", [])
+    except Exception as e:
+        print(f"Groq parsing failed: {e}")
 
     # Fallback local regex parsing
     if not extracted_values:
@@ -117,33 +105,17 @@ def summarize_report_node(state: DiagnosticsState) -> DiagnosticsState:
     warnings = state["warnings"]
     ai_summary = ""
 
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.2
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are a Physician Assistant. Write a concise, 1-2 sentence clinical summary of the following laboratory results for '{test_name}'.\n"
-                    "Highlight critical/abnormal values and normal status where appropriate.\n\n"
-                    "Abnormal status: {is_abnormal}\n"
-                    "Warnings: {warnings}\n"
-                    "Raw text:\n{raw_text}\n"
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({
-                "test_name": test_name,
-                "is_abnormal": is_abnormal,
-                "warnings": ", ".join(warnings),
-                "raw_text": raw_text
-            })
-            ai_summary = response.content.strip()
-        except Exception as e:
-            print(f"Gemini summarization failed: {e}")
+    try:
+        system_prompt = (
+            f"You are a Physician Assistant. Write a concise, 1-2 sentence clinical summary of the following laboratory results for '{test_name}'.\n"
+            "Highlight critical/abnormal values and normal status where appropriate.\n\n"
+            f"Abnormal status: {is_abnormal}\n"
+            f"Warnings: {', '.join(warnings)}\n"
+            f"Raw text:\n{raw_text}\n"
+        )
+        ai_summary = call_llm(system_prompt, temperature=0.2)
+    except Exception as e:
+        print(f"Groq summarization failed: {e}")
 
     if not ai_summary:
         # Fallback local summary

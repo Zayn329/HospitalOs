@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, XCircle, RefreshCw, Cpu, Database, Activity, Terminal, UserPlus, Users, LogOut, Key, Calendar, FileText } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, RefreshCw, Cpu, Database, Activity, Terminal, UserPlus, Users, LogOut, Key, Calendar, FileText, CreditCard } from 'lucide-react';
 import PatientRegistration from './components/PatientRegistration.tsx';
 import Login from './components/Login.tsx';
 import AppointmentManagement from './components/AppointmentManagement.tsx';
@@ -8,6 +8,8 @@ import PatientTriage from './components/PatientTriage.tsx';
 import DoctorWorkspace from './components/DoctorWorkspace.tsx';
 import MedicalDocumentation from './components/MedicalDocumentation.tsx';
 import DiagnosticsConsole from './components/DiagnosticsConsole.tsx';
+import BillingConsole from './components/BillingConsole.tsx';
+import DischargeWorkspace from './components/DischargeWorkspace.tsx';
 
 interface HealthDetails {
   api: 'UP' | 'DOWN';
@@ -48,7 +50,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics'>('appointments');
+  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge'>('appointments');
 
   // Diagnostics State
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -308,6 +310,20 @@ export default function App() {
                 Diagnostics Console
               </button>
               <button
+                onClick={() => setActiveTab('billing')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'billing' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <CreditCard className="w-4 h-4" />
+                Billing Console
+              </button>
+              <button
+                onClick={() => setActiveTab('discharge')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'discharge' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <LogOut className="w-4 h-4" />
+                Patient Discharge
+              </button>
+              <button
                 onClick={() => setActiveTab('health')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'health' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
               >
@@ -414,6 +430,16 @@ export default function App() {
         {/* Tab 1.10: Diagnostics Console */}
         {activeTab === 'diagnostics' && (
           <DiagnosticsConsole />
+        )}
+
+        {/* Tab 1.11: Billing Console */}
+        {activeTab === 'billing' && (
+          <BillingConsole token={token} addLog={addLog} />
+        )}
+
+        {/* Tab 1.12: Patient Discharge */}
+        {activeTab === 'discharge' && (
+          <DischargeWorkspace token={token} addLog={addLog} />
         )}
 
         {/* Tab 2: System Diagnostics */}

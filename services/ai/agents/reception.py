@@ -3,8 +3,7 @@ import json
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
+from agents.llm import call_llm
 
 router = APIRouter(prefix="/agent/reception", tags=["reception"])
 
@@ -47,65 +46,36 @@ def suggest_slots(payload: SlotSuggestionRequest):
     ]
     
     # 3. Check for API keys to query Gemini
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    
-    if api_key:
-        try:
-            # Connect using ChatGoogleGenerativeAI
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are the AI Reception Agent for HospitalOS, a modern hospital system. "
-                    "Your task is to analyze doctor availability and workload, consider the patient's urgency and reason, "
-                    "highlight potential booking conflicts, and provide scheduling advice. "
-                    "Doctor Name: Dr. {doctor_name}\n"
-                    "Doctor Speciality: {specialization} ({department})\n"
-                    "Workload: {workload_count} existing appointments booked today.\n"
-                    "Patient Urgency: {urgency}\n"
-                    "Reason for Visit: {reason}\n"
-                    "Appointment Type: {appointment_type}\n"
-                    "Date: {date}\n"
-                    "Standard Availability Slots: {availability}\n"
-                    "Already Booked Slots (Unavailable): {booked}\n"
-                    "Free Available Slots: {free}\n\n"
-                    "Recommend the most suitable slot for the patient. "
-                    "If urgency is HIGH, try to recommend the earliest slot. If the workload is heavy, recommend a less busy period. "
-                    "Respond with a conversational, polite suggestion message (2-3 sentences max) recommending the best slot. "
-                    "Explain briefly why you recommend it."
-                ))
-            ])
-            
-            chain = prompt | llm
-            response = chain.invoke({
-                "doctor_name": payload.doctorName,
-                "specialization": payload.specialization or "General Medicine",
-                "department": payload.department or "Outpatient Clinic",
-                "workload_count": len(booked),
-                "urgency": payload.urgency,
-                "reason": payload.reason or "Routine Check",
-                "appointment_type": payload.appointmentType,
-                "date": payload.date,
-                "availability": ", ".join(payload.availability),
-                "booked": ", ".join(booked) if booked else "None",
-                "free": ", ".join(available) if available else "None"
-            })
-            
-            recommendation = response.content.strip()
-            
-            return SlotSuggestionResponse(
-                availableSlots=available,
-                bookedSlots=booked,
-                recommendation=recommendation
-            )
-        except Exception as e:
-            # Fall back to template if LLM call fails
-            print(f"Gemini LLM agent call failed: {e}")
-            pass
+    try:
+        system_prompt = (
+            "You are the AI Reception Agent for HospitalOS, a modern hospital system. "
+            "Your task is to analyze doctor availability and workload, consider the patient's urgency and reason, "
+            "highlight potential booking conflicts, and provide scheduling advice.\n\n"
+            f"Doctor Name: Dr. {payload.doctorName}\n"
+            f"Doctor Speciality: {payload.specialization or 'General Medicine'} ({payload.department or 'Outpatient Clinic'})\n"
+            f"Workload: {len(booked)} existing appointments booked today.\n"
+            f"Patient Urgency: {payload.urgency}\n"
+            f"Reason for Visit: {payload.reason or 'Routine Check'}\n"
+            f"Appointment Type: {payload.appointmentType}\n"
+            f"Date: {payload.date}\n"
+            f"Standard Availability Slots: {', '.join(payload.availability)}\n"
+            f"Already Booked Slots (Unavailable): {', '.join(booked) if booked else 'None'}\n"
+            f"Free Available Slots: {', '.join(available) if available else 'None'}\n\n"
+            "Recommend the most suitable slot for the patient. "
+            "If urgency is HIGH, try to recommend the earliest slot. If the workload is heavy, recommend a less busy period. "
+            "Respond with a conversational, polite suggestion message (2-3 sentences max) recommending the best slot. "
+            "Explain briefly why you recommend it."
+        )
+        recommendation = call_llm(system_prompt, temperature=0.1)
+        
+        return SlotSuggestionResponse(
+            availableSlots=available,
+            bookedSlots=booked,
+            recommendation=recommendation
+        )
+    except Exception as e:
+        print(f"Gemini LLM agent call failed: {e}")
+        pass
             
     # 4. Local rule-based recommendation fallback
     workload_count = len(booked)
@@ -247,60 +217,38 @@ def fallback_duplicate_check(new_patient: PatientCheckPayload, existing_patients
 
 @router.post("/patient/duplicate-check", response_model=DuplicateCheckResponse)
 def check_duplicate_patients(payload: DuplicateCheckRequest):
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    
-    if api_key and payload.existingPatients:
+    if payload.existingPatients:
         try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are the AI Reception Agent for HospitalOS. Your task is to perform semantic deduplication "
-                    "of patient records. Compare the new patient record against a list of candidate existing patients. "
-                    "Look for similarities despite differences in formatting, abbreviations, middle names, typos, casing, "
-                    "or date-of-birth formats. "
-                    "For each candidate, output a confidence score from 0.0 to 1.0 (where 1.0 is exact match, and >=0.7 is a potential duplicate) "
-                    "and a list of reasons for your matching decision. "
-                    "If no candidates are similar, return empty list. "
-                    "Respond STRICTLY in JSON format with a key 'matches' containing an array of objects. "
-                    "Each object MUST have: 'hospitalId', 'firstName', 'lastName', 'phone', 'dateOfBirth', 'confidence', 'reasons'. "
-                    "Do NOT output markdown blocks (like ```json). Respond with pure JSON."
-                )),
-                ("user", (
-                    "New Patient:\n"
-                    "Name: {new_first} {new_last}\n"
-                    "Phone: {new_phone}\n"
-                    "DOB: {new_dob}\n"
-                    "Gender: {new_gender}\n"
-                    "Address: {new_address}\n\n"
-                    "Candidate Patients:\n"
-                    "{candidates}\n\n"
-                    "Provide your analysis."
-                ))
-            ])
-            
             candidates_formatted = []
             for pat in payload.existingPatients:
                 candidates_formatted.append(
                     f"- ID: {pat.hospitalId}, Name: {pat.firstName} {pat.lastName}, Phone: {pat.phone}, DOB: {pat.dateOfBirth}"
                 )
             
-            chain = prompt | llm
-            response = chain.invoke({
-                "new_first": payload.newPatient.firstName,
-                "new_last": payload.newPatient.lastName,
-                "new_phone": payload.newPatient.phone,
-                "new_dob": payload.newPatient.dateOfBirth,
-                "new_gender": payload.newPatient.gender,
-                "new_address": payload.newPatient.address or "None",
-                "candidates": "\n".join(candidates_formatted)
-            })
-            
-            content = response.content.strip()
+            system_prompt = (
+                "You are the AI Reception Agent for HospitalOS. Your task is to perform semantic deduplication "
+                "of patient records. Compare the new patient record against a list of candidate existing patients. "
+                "Look for similarities despite differences in formatting, abbreviations, middle names, typos, casing, "
+                "or date-of-birth formats. "
+                "For each candidate, output a confidence score from 0.0 to 1.0 (where 1.0 is exact match, and >=0.7 is a potential duplicate) "
+                "and a list of reasons for your matching decision. "
+                "If no candidates are similar, return empty list. "
+                "Respond STRICTLY in JSON format with a key 'matches' containing an array of objects. "
+                "Each object MUST have: 'hospitalId', 'firstName', 'lastName', 'phone', 'dateOfBirth', 'confidence', 'reasons'. "
+                "Do NOT output markdown blocks (like ```json). Respond with pure JSON."
+            )
+            user_prompt = (
+                "New Patient:\n"
+                f"Name: {payload.newPatient.firstName} {payload.newPatient.lastName}\n"
+                f"Phone: {payload.newPatient.phone}\n"
+                f"DOB: {payload.newPatient.dateOfBirth}\n"
+                f"Gender: {payload.newPatient.gender}\n"
+                f"Address: {payload.newPatient.address or 'None'}\n\n"
+                "Candidate Patients:\n"
+                f"{'\n'.join(candidates_formatted)}\n\n"
+                "Provide your analysis."
+            )
+            content = call_llm(system_prompt, user_prompt, temperature=0.1)
             # Basic cleaning if JSON fences are present
             if content.startswith("```"):
                 content = content.replace("```json", "").replace("```", "").strip()
@@ -367,55 +315,35 @@ def fallback_late_checkin(payload: LateCheckinRequest) -> LateCheckinResponse:
 
 @router.post("/checkin/late-options", response_model=LateCheckinResponse)
 def evaluate_late_checkin(payload: LateCheckinRequest):
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
+    try:
+        system_prompt = (
+            "You are the AI Reception Agent for HospitalOS. Your task is to analyze late arrivals of patients "
+            "and recommend the best option to the receptionist. "
+            f"Doctor Name: Dr. {payload.doctorName}\n"
+            f"Appointment Time: {payload.appointmentTime}\n"
+            f"Actual Arrival Time (Late): {payload.arrivalTime}\n"
+            f"Doctor Workload: {payload.doctorWorkload} bookings scheduled today.\n\n"
+            "Evaluate the situation. Provide a recommendation which action to take. "
+            "Options: \n"
+            "- 'proceed': check in anyway if the doctor has few bookings and the delay is minor (under 15 mins).\n"
+            "- 'queue_as_walkin': place patient in the waiting queue if they are moderately late (15-30 mins) but doctor has some opening.\n"
+            "- 'reschedule': require reschedule if they are extremely late (>30 mins) or the doctor has a heavy workload (>4 bookings).\n\n"
+            "Respond with a JSON block having keys: 'recommendedAction' (one of: 'proceed', 'queue_as_walkin', 'reschedule') "
+            "and 'explanation' (2 sentences explaining the decision). "
+            "Do NOT output markdown blocks (like ```json). Respond with pure JSON."
+        )
+        content = call_llm(system_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
             
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are the AI Reception Agent for HospitalOS. Your task is to analyze late arrivals of patients "
-                    "and recommend the best option to the receptionist. "
-                    "Doctor Name: Dr. {doctor_name}\n"
-                    "Appointment Time: {appointment_time}\n"
-                    "Actual Arrival Time (Late): {arrival_time}\n"
-                    "Doctor Workload: {workload} bookings scheduled today.\n\n"
-                    "Evaluate the situation. Provide a recommendation which action to take. "
-                    "Options: \n"
-                    "- 'proceed': check in anyway if the doctor has few bookings and the delay is minor (under 15 mins).\n"
-                    "- 'queue_as_walkin': place patient in the waiting queue if they are moderately late (15-30 mins) but doctor has some opening.\n"
-                    "- 'reschedule': require reschedule if they are extremely late (>30 mins) or the doctor has a heavy workload (>4 bookings).\n\n"
-                    "Respond with a JSON block having keys: 'recommendedAction' (one of: 'proceed', 'queue_as_walkin', 'reschedule') "
-                    "and 'explanation' (2 sentences explaining the decision). "
-                    "Do NOT output markdown blocks (like ```json). Respond with pure JSON."
-                ))
-            ])
-            
-            chain = prompt | llm
-            response = chain.invoke({
-                "doctor_name": payload.doctorName,
-                "appointment_time": payload.appointmentTime,
-                "arrival_time": payload.arrivalTime,
-                "workload": payload.doctorWorkload
-            })
-            
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-                
-            data = json.loads(content)
-            return LateCheckinResponse(
-                recommendedAction=data.get("recommendedAction", "proceed"),
-                explanation=data.get("explanation", "")
-            )
-        except Exception as e:
-            print(f"Gemini late checkin advisor failed: {e}")
-            pass
+        data = json.loads(content)
+        return LateCheckinResponse(
+            recommendedAction=data.get("recommendedAction", "proceed"),
+            explanation=data.get("explanation", "")
+        )
+    except Exception as e:
+        print(f"Gemini late checkin advisor failed: {e}")
+        pass
             
     return fallback_late_checkin(payload)
 
@@ -471,55 +399,38 @@ def fallback_triage(payload: TriageRequest) -> TriageResponse:
 
 @router.post("/triage/evaluate", response_model=TriageResponse)
 def evaluate_triage(payload: TriageRequest):
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
+    try:
+        system_prompt = (
+            "You are the AI Triage Agent for HospitalOS. Your task is to analyze patient symptom descriptions, "
+            "categorize their urgency level, and provide follow-up recommendations.\n"
+            "Urgency Categories:\n"
+            "- 'emergency': severe symptoms (chest pain, breathing issues, severe bleeding, unconsciousness, etc.).\n"
+            "- 'urgent': moderate symptoms (high fever, severe abdominal pain, possible fractures, severe headache).\n"
+            "- 'routine': minor symptoms (mild throat scratch, standard cough, mild rash, simple follow-up).\n\n"
+            "If the symptom description is too short (e.g. less than 12 characters) or extremely vague (e.g. 'feels sick', 'bad'), "
+            "flag 'insufficientInfo' as true, priority as 'routine', and list 3 specific questions to ask the patient "
+            "to gather critical details.\n\n"
+            "Respond with a JSON block having keys:\n"
+            "- 'priority': one of 'emergency', 'urgent', 'routine'\n"
+            "- 'explanation': 2-sentence medical reasoning for the priority\n"
+            "- 'suggestedQuestions': array of 3 specific questions to ask the patient\n"
+            "- 'insufficientInfo': boolean (true if symptoms are vague/incomplete)\n\n"
+            "Do NOT output markdown blocks (like ```json). Respond with pure JSON."
+        )
+        user_prompt = f"Symptoms: {payload.symptoms}\n\nProvide triage evaluation:"
+        content = call_llm(system_prompt, user_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
             
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are the AI Triage Agent for HospitalOS. Your task is to analyze patient symptom descriptions, "
-                    "categorize their urgency level, and provide follow-up recommendations.\n"
-                    "Urgency Categories:\n"
-                    "- 'emergency': severe symptoms (chest pain, breathing issues, severe bleeding, unconsciousness, etc.).\n"
-                    "- 'urgent': moderate symptoms (high fever, severe abdominal pain, possible fractures, severe headache).\n"
-                    "- 'routine': minor symptoms (mild throat scratch, standard cough, mild rash, simple follow-up).\n\n"
-                    "If the symptom description is too short (e.g. less than 12 characters) or extremely vague (e.g. 'feels sick', 'bad'), "
-                    "flag 'insufficientInfo' as true, priority as 'routine', and list 3 specific questions to ask the patient "
-                    "to gather critical details.\n\n"
-                    "Respond with a JSON block having keys:\n"
-                    "- 'priority': one of 'emergency', 'urgent', 'routine'\n"
-                    "- 'explanation': 2-sentence medical reasoning for the priority\n"
-                    "- 'suggestedQuestions': array of 3 specific questions to ask the patient\n"
-                    "- 'insufficientInfo': boolean (true if symptoms are vague/incomplete)\n\n"
-                    "Do NOT output markdown blocks (like ```json). Respond with pure JSON."
-                )),
-                ("user", "Symptoms: {symptoms}\n\nProvide triage evaluation:")
-            ])
-            
-            chain = prompt | llm
-            response = chain.invoke({
-                "symptoms": payload.symptoms
-            })
-            
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-                
-            data = json.loads(content)
-            return TriageResponse(
-                priority=data.get("priority", "routine"),
-                explanation=data.get("explanation", ""),
-                suggestedQuestions=data.get("suggestedQuestions", []),
-                insufficientInfo=data.get("insufficientInfo", False)
-            )
-        except Exception as e:
-            print(f"Gemini triage evaluation failed: {e}")
-            pass
+        data = json.loads(content)
+        return TriageResponse(
+            priority=data.get("priority", "routine"),
+            explanation=data.get("explanation", ""),
+            suggestedQuestions=data.get("suggestedQuestions", []),
+            insufficientInfo=data.get("insufficientInfo", False)
+        )
+    except Exception as e:
+        print(f"Gemini triage evaluation failed: {e}")
+        pass
             
     return fallback_triage(payload)

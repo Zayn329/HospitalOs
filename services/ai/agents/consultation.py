@@ -3,8 +3,7 @@ import json
 from typing import TypedDict, List
 from fastapi import APIRouter
 from pydantic import BaseModel
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
+from agents.llm import call_llm
 from langgraph.graph import StateGraph, END
 
 router = APIRouter(prefix="/consultation", tags=["consultation"])
@@ -48,34 +47,23 @@ def check_allergies_node(state: AgentState) -> dict:
     if not allergies or not meds:
         return {"warnings": []}
         
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are a Clinical Pharmacist Assistant. Analyze the patient's listed drug allergies "
-                    "against the proposed medications list. Identify any direct matches, cross-reactivity, or class warnings "
-                    "(e.g., Penicillin allergy warning when prescribing Amoxicillin, NSAID allergy warning for Ibuprofen, etc.).\n\n"
-                    "Patient Allergies: {allergies}\n"
-                    "Proposed Medications: {meds}\n\n"
-                    "Respond with a JSON block containing key: 'warnings' (array of strings explaining conflicts). "
-                    "If no conflicts are found, return an empty array. Do not output markdown code blocks."
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({"allergies": ", ".join(allergies), "meds": ", ".join(meds)})
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-            data = json.loads(content)
-            return {"warnings": data.get("warnings", [])}
-        except Exception as e:
-            print(f"Gemini allergy check failed: {e}")
+    try:
+        system_prompt = (
+            "You are a Clinical Pharmacist Assistant. Analyze the patient's listed drug allergies "
+            "against the proposed medications list. Identify any direct matches, cross-reactivity, or class warnings "
+            "(e.g., Penicillin allergy warning when prescribing Amoxicillin, NSAID allergy warning for Ibuprofen, etc.).\n\n"
+            f"Patient Allergies: {', '.join(allergies)}\n"
+            f"Proposed Medications: {', '.join(meds)}\n\n"
+            "Respond with a JSON block containing key: 'warnings' (array of strings explaining conflicts). "
+            "If no conflicts are found, return an empty array. Do not output markdown code blocks."
+        )
+        content = call_llm(system_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        return {"warnings": data.get("warnings", [])}
+    except Exception as e:
+        print(f"Groq allergy check failed: {e}")
             
     # Fallback local logic
     for med in meds:
@@ -98,42 +86,27 @@ def generate_soap_node(state: AgentState) -> dict:
     findings = state.get("findings", "")
     treatment = state.get("treatment", "")
     
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are a Clinical Medical Scribe. Restructure the patient's symptoms, doctor findings, "
-                    "and treatment plan into the standard medical SOAP notes format:\n"
-                    "- Subjective: patient reported symptoms and history.\n"
-                    "- Objective: vital signs, observation, clinical findings.\n"
-                    "- Assessment: diagnosis and clinical reasoning.\n"
-                    "- Plan: medications, instructions, follow-up.\n\n"
-                    "Symptoms: {symptoms}\n"
-                    "Findings: {findings}\n"
-                    "Treatment: {treatment}\n\n"
-                    "Respond with a JSON block containing keys: 'subjective', 'objective', 'assessment', 'plan'. "
-                    "Do NOT use markdown code blocks. Respond with pure JSON."
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({
-                "symptoms": ", ".join(symptoms),
-                "findings": findings,
-                "treatment": treatment
-            })
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-            data = json.loads(content)
-            return {"soap_notes": data}
-        except Exception as e:
-            print(f"Gemini SOAP note generation failed: {e}")
+    try:
+        system_prompt = (
+            "You are a Clinical Medical Scribe. Restructure the patient's symptoms, doctor findings, "
+            "and treatment plan into the standard medical SOAP notes format:\n"
+            "- Subjective: patient reported symptoms and history.\n"
+            "- Objective: vital signs, observation, clinical findings.\n"
+            "- Assessment: diagnosis and clinical reasoning.\n"
+            "- Plan: medications, instructions, follow-up.\n\n"
+            f"Symptoms: {', '.join(symptoms)}\n"
+            f"Findings: {findings}\n"
+            f"Treatment: {treatment}\n\n"
+            "Respond with a JSON block containing keys: 'subjective', 'objective', 'assessment', 'plan'. "
+            "Do NOT use markdown code blocks. Respond with pure JSON."
+        )
+        content = call_llm(system_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        return {"soap_notes": data}
+    except Exception as e:
+        print(f"Groq SOAP note generation failed: {e}")
             
     # Fallback local parsing
     soap = {
@@ -198,44 +171,29 @@ class EnhanceNotesRequest(BaseModel):
 
 @router.post("/enhance", response_model=SoapNotesResponse)
 def api_enhance_notes(payload: EnhanceNotesRequest):
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.2
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are a Clinical Documentation Enhancement Expert. Take the patient symptoms, "
-                    "findings, and treatment plan, and refine them into highly professional, polished, and structured clinical SOAP notes. "
-                    "Use advanced clinical terminology, clear syntax, and correct billing-ready phrasing.\n\n"
-                    "Symptoms: {symptoms}\n"
-                    "Findings: {findings}\n"
-                    "Treatment: {treatment}\n\n"
-                    "Respond with a JSON block containing keys: 'subjective', 'objective', 'assessment', 'plan'. "
-                    "Do NOT use markdown code blocks. Respond with pure JSON."
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({
-                "symptoms": ", ".join(payload.symptoms),
-                "findings": payload.findings,
-                "treatment": payload.treatment
-            })
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-            data = json.loads(content)
-            return SoapNotesResponse(
-                subjective=data.get("subjective", ""),
-                objective=data.get("objective", ""),
-                assessment=data.get("assessment", ""),
-                plan=data.get("plan", "")
-            )
-        except Exception as e:
-            print(f"Gemini enhancement failed: {e}")
+    try:
+        system_prompt = (
+            "You are a Clinical Documentation Enhancement Expert. Take the patient symptoms, "
+            "findings, and treatment plan, and refine them into highly professional, polished, and structured clinical SOAP notes. "
+            "Use advanced clinical terminology, clear syntax, and correct billing-ready phrasing.\n\n"
+            f"Symptoms: {', '.join(payload.symptoms)}\n"
+            f"Findings: {payload.findings}\n"
+            f"Treatment: {payload.treatment}\n\n"
+            "Respond with a JSON block containing keys: 'subjective', 'objective', 'assessment', 'plan'. "
+            "Do NOT use markdown code blocks. Respond with pure JSON."
+        )
+        content = call_llm(system_prompt, temperature=0.2)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        return SoapNotesResponse(
+            subjective=data.get("subjective", ""),
+            objective=data.get("objective", ""),
+            assessment=data.get("assessment", ""),
+            plan=data.get("plan", "")
+        )
+    except Exception as e:
+        print(f"Groq enhancement failed: {e}")
             
     return SoapNotesResponse(
         subjective=f"Clinical Narrative: Patient presents reporting {', '.join(payload.symptoms)}.",

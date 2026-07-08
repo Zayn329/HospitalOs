@@ -9,6 +9,8 @@ import triageRouter from './routes/triage.js';
 import consultationRouter from './routes/consultation.js';
 import documentationRouter from './routes/documentation.js';
 import diagnosticsRouter from './routes/diagnostics.js';
+import billingRouter from './routes/billing.js';
+import dischargeRouter from './routes/discharge.js';
 
 const app = express();
 
@@ -31,6 +33,8 @@ app.use('/api/v1', triageRouter);
 app.use('/api/v1', consultationRouter);
 app.use('/api/v1', documentationRouter);
 app.use('/api/v1', diagnosticsRouter);
+app.use('/api/v1', billingRouter);
+app.use('/api/v1', dischargeRouter);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

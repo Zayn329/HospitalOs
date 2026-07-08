@@ -3,8 +3,7 @@ import json
 from typing import TypedDict, List
 from fastapi import APIRouter
 from pydantic import BaseModel
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
+from agents.llm import call_llm
 from langgraph.graph import StateGraph, END
 
 router = APIRouter(prefix="/medication-safety", tags=["medication-safety"])
@@ -35,35 +34,24 @@ def check_allergies_node(state: AgentState) -> dict:
     if not allergies or not proposed_meds:
         return {"warnings": warnings}
         
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are a Clinical Pharmacist Assistant. Analyze the patient's listed drug allergies "
-                    "against the proposed medications list. Identify any direct matches, cross-reactivity, or class warnings "
-                    "(e.g., Penicillin allergy warning when prescribing Amoxicillin, NSAID allergy warning for Ibuprofen, etc.).\n\n"
-                    "Patient Allergies: {allergies}\n"
-                    "Proposed Medications: {proposed_meds}\n\n"
-                    "Respond with a JSON block containing key: 'warnings' (array of strings explaining conflicts). "
-                    "If no conflicts are found, return an empty array. Do not output markdown code blocks."
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({"allergies": ", ".join(allergies), "proposed_meds": ", ".join(proposed_meds)})
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-            data = json.loads(content)
-            warnings.extend(data.get("warnings", []))
-            return {"warnings": warnings}
-        except Exception as e:
-            print(f"Gemini allergy check failed: {e}")
+    try:
+        system_prompt = (
+            "You are a Clinical Pharmacist Assistant. Analyze the patient's listed drug allergies "
+            "against the proposed medications list. Identify any direct matches, cross-reactivity, or class warnings "
+            "(e.g., Penicillin allergy warning when prescribing Amoxicillin, NSAID allergy warning for Ibuprofen, etc.).\n\n"
+            f"Patient Allergies: {', '.join(allergies)}\n"
+            f"Proposed Medications: {', '.join(proposed_meds)}\n\n"
+            "Respond with a JSON block containing key: 'warnings' (array of strings explaining conflicts). "
+            "If no conflicts are found, return an empty array. Do not output markdown code blocks."
+        )
+        content = call_llm(system_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        warnings.extend(data.get("warnings", []))
+        return {"warnings": warnings}
+    except Exception as e:
+        print(f"Groq allergy check failed: {e}")
             
     # Fallback local logic
     for med in proposed_meds:
@@ -89,35 +77,28 @@ def check_interactions_node(state: AgentState) -> dict:
     if not current_meds or not proposed_meds:
         return {"warnings": warnings}
         
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are a Clinical Pharmacist Assistant. Analyze the proposed medications list "
-                    "against the patient's current medications list. Identify any clinical drug-drug interactions, "
-                    "potentiations, or severe contraindications (e.g., Warfarin + Aspirin bleeding risk, etc.).\n\n"
-                    "Current Medications: {current_meds}\n"
-                    "Proposed Medications: {proposed_meds}\n\n"
-                    "Respond with a JSON block containing key: 'warnings' (array of strings explaining conflicts/interactions). "
-                    "If no conflicts are found, return an empty array. Do not output markdown code blocks."
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({"current_meds": ", ".join(current_meds), "proposed_meds": ", ".join(proposed_meds)})
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-            data = json.loads(content)
-            warnings.extend(data.get("warnings", []))
-            return {"warnings": warnings}
-        except Exception as e:
-            print(f"Gemini drug interaction check failed: {e}")
+    try:
+        system_prompt = (
+            "You are a Clinical Pharmacist Assistant. Analyze the proposed medications list "
+            "against the patient's current medications list. Identify any clinical drug-drug interactions, "
+            "potentiations, or severe contraindications (e.g., Warfarin + Aspirin bleeding risk, etc.).\n\n"
+            f"Current Medications: {', '.join(current_meds)}\n"
+            f"Proposed Medications: {', '.join(proposed_meds)}\n\n"
+            "Respond with a JSON block containing key: 'warnings' (array of strings explaining conflicts/interactions). "
+            "If no conflicts are found, return an empty array. Do not output markdown code blocks."
+        )
+        content = call_llm(system_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        for w in data.get("warnings", []):
+            if "Interaction" not in w:
+                warnings.append(f"Drug-Drug Interaction: {w}")
+            else:
+                warnings.append(w)
+        return {"warnings": warnings}
+    except Exception as e:
+        print(f"Groq drug interaction check failed: {e}")
             
     # Fallback local logic
     for med in proposed_meds:
@@ -148,35 +129,33 @@ def check_duplicates_node(state: AgentState) -> dict:
     if not current_meds or not proposed_meds:
         return {"warnings": warnings}
         
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=api_key,
-                temperature=0.1
-            )
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are a Clinical Pharmacist Assistant. Analyze the proposed medications list "
-                    "against the patient's current medications list. Identify any therapeutic duplications or drug duplicates "
-                    "(e.g., prescribing two NSAIDs like Ibuprofen and Naproxen, or prescribing the same drug again under a different brand/strength).\n\n"
-                    "Current Medications: {current_meds}\n"
-                    "Proposed Medications: {proposed_meds}\n\n"
-                    "Respond with a JSON block containing key: 'warnings' (array of strings explaining duplication conflicts). "
-                    "If no conflicts are found, return an empty array. Do not output markdown code blocks."
-                ))
-            ])
-            chain = prompt | llm
-            response = chain.invoke({"current_meds": ", ".join(current_meds), "proposed_meds": ", ".join(proposed_meds)})
-            content = response.content.strip()
-            if content.startswith("```"):
-                content = content.replace("```json", "").replace("```", "").strip()
-            data = json.loads(content)
-            warnings.extend(data.get("warnings", []))
-            return {"warnings": warnings}
-        except Exception as e:
-            print(f"Gemini duplication check failed: {e}")
+    try:
+        system_prompt = (
+            "You are a Clinical Pharmacist Assistant. Analyze the proposed medications list "
+            "against the patient's current medications list. Identify any therapeutic duplications or drug duplicates "
+            "(e.g., prescribing two NSAIDs like Ibuprofen and Naproxen, or prescribing the same drug again under a different brand/strength).\n\n"
+            f"Current Medications: {', '.join(current_meds)}\n"
+            f"Proposed Medications: {', '.join(proposed_meds)}\n\n"
+            "Respond with a JSON block containing key: 'warnings' (array of strings explaining duplication conflicts). "
+            "If no conflicts are found, return an empty array. Do not output markdown code blocks."
+        )
+        content = call_llm(system_prompt, temperature=0.1)
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        for w in data.get("warnings", []):
+            if "Duplicate" not in w:
+                if "duplication" in w.lower():
+                    import re
+                    w_mod = re.sub(r"duplication", "Duplicate", w, flags=re.IGNORECASE)
+                    warnings.append(w_mod)
+                else:
+                    warnings.append(f"Duplicate Medication: {w}")
+            else:
+                warnings.append(w)
+        return {"warnings": warnings}
+    except Exception as e:
+        print(f"Groq duplication check failed: {e}")
             
     # Fallback local logic
     for med in proposed_meds:
