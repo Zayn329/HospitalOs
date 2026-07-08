@@ -36,6 +36,7 @@ export default function PatientRegistration() {
   const [loading, setLoading] = useState(false);
   const [successPatient, setSuccessPatient] = useState<any | null>(null);
   const [duplicatePatient, setDuplicatePatient] = useState<ExistingPatientInfo | null>(null);
+  const [potentialDuplicates, setPotentialDuplicates] = useState<any[] | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -80,13 +81,15 @@ export default function PatientRegistration() {
     setErrors([]);
     setSuccessPatient(null);
     setDuplicatePatient(null);
+    setPotentialDuplicates(null);
     setServerError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent, override = false) => {
+    if (e) e.preventDefault();
     setSuccessPatient(null);
     setDuplicatePatient(null);
+    setPotentialDuplicates(null);
     setServerError(null);
 
     if (!validateForm()) {
@@ -111,7 +114,8 @@ export default function PatientRegistration() {
           phone: formData.emergencyPhone.trim(),
           relationship: formData.emergencyRelationship.trim()
         } : undefined,
-        medicalHistory: formData.medicalHistory ? formData.medicalHistory.split(',').map(s => s.trim()).filter(Boolean) : []
+        medicalHistory: formData.medicalHistory ? formData.medicalHistory.split(',').map(s => s.trim()).filter(Boolean) : [],
+        overrideDuplicate: override
       };
 
       const response = await fetch('http://localhost:5000/api/v1/patients', {
@@ -127,6 +131,8 @@ export default function PatientRegistration() {
         addRegisteredPatientToLocalList(result.data);
       } else if (response.status === 409 && result.error?.code === 'DUPLICATE_PATIENT') {
         setDuplicatePatient(result.error.existingPatient);
+      } else if (response.status === 409 && result.error?.code === 'POTENTIAL_DUPLICATE') {
+        setPotentialDuplicates(result.error.matches);
       } else if (result.error?.code === 'VALIDATION_ERROR') {
         setErrors(result.error.details || []);
       } else {
@@ -490,6 +496,84 @@ export default function PatientRegistration() {
                 >
                   Clear & Dismiss
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POTENTIAL DUPLICATE SUGGESTION MODAL */}
+      {potentialDuplicates && potentialDuplicates.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-slate-950 border border-amber-500/30 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="p-3 rounded-full bg-amber-500/10 text-amber-400 mb-4">
+                <ShieldAlert className="w-10 h-10" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-100">Potential Duplicate Detected</h3>
+              <p className="text-sm text-slate-400 mt-1">
+                The AI Reception Agent identified similar patient records already registered.
+              </p>
+
+              <div className="w-full max-h-60 overflow-y-auto space-y-4 my-6 text-left pr-1">
+                {potentialDuplicates.map((match, idx) => (
+                  <div key={idx} className="bg-slate-900/60 border border-slate-850 rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-sky-400 font-mono font-semibold">ID: {match.hospitalId}</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                        {Math.round(match.confidence * 100)}% Match
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                      <div>
+                        <span className="text-slate-500">Name:</span>{' '}
+                        <span className="font-semibold text-slate-300">{match.firstName} {match.lastName}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Phone:</span>{' '}
+                        <span className="font-mono text-slate-300">{match.phone}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500">DOB:</span>{' '}
+                        <span className="font-mono text-slate-300">{match.dateOfBirth}</span>
+                      </div>
+                    </div>
+                    {match.reasons && match.reasons.length > 0 && (
+                      <div className="mt-3 pt-2.5 border-t border-slate-800/80">
+                        <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider block mb-1">Matching Reasons:</span>
+                        <ul className="list-disc list-inside text-[11px] text-slate-400 space-y-0.5">
+                          {match.reasons.map((reason: string, rIdx: number) => (
+                            <li key={rIdx}>{reason}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="w-full flex flex-col gap-2">
+                <button
+                  onClick={() => handleSubmit(undefined, true)}
+                  disabled={loading}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-sm font-semibold transition-all shadow-lg shadow-orange-500/10"
+                >
+                  {loading ? 'Processing...' : 'Confirm & Register Anyway (Override)'}
+                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPotentialDuplicates(null)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 text-sm font-medium hover:text-slate-300 hover:border-slate-700 transition-colors"
+                  >
+                    Edit Information
+                  </button>
+                  <button
+                    onClick={resetForm}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-900/60 text-rose-400 text-sm font-medium transition-all"
+                  >
+                    Clear & Dismiss
+                  </button>
+                </div>
               </div>
             </div>
           </div>

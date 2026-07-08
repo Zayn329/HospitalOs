@@ -1,22 +1,36 @@
 Feature: Patient Triage
 
-  As a hospital
-  I want patients prioritized according to urgency
-  So that critical patients receive immediate attention.
+  As a hospital receptionist or nurse
+  I want patients prioritized according to symptom urgency
+  So that critical patients receive immediate attention and jump the queue.
 
-  Scenario: Emergency symptoms detected
-    Given a patient reports severe emergency symptoms
+  Scenario: Emergency symptoms evaluated by AI
+    Given a patient reports symptoms "severe crushing chest pain and shortness of breath"
+    When the nurse evaluates the symptoms using the Triage Agent
+    Then the AI should recommend priority "emergency"
+    And explain the reasons
+    And suggest additional questions
+
+  Scenario: Triage confirmation and queue prioritization
+    Given a patient has been assigned "emergency" priority
+    When the nurse confirms the priority level
+    Then the patient should be placed at the top of the waiting queue
+    And a critical alert notification should be sent to the on-duty doctor
+
+  Scenario: Non-urgent symptoms
+    Given a patient reports symptoms "mild scratchy throat for two days"
     When the symptoms are evaluated
-    Then the patient should be assigned the highest priority
-    And the appropriate medical staff should be alerted immediately
+    Then the AI should recommend priority "routine"
+    And the patient should enter the waiting queue behind higher priority patients
 
-  Scenario: Routine symptoms
-    Given a patient reports non-urgent symptoms
+  Scenario: Insufficient symptom details
+    Given symptom description is "patient feels sick"
     When the symptoms are evaluated
-    Then the patient should enter the standard consultation queue
+    Then the system should report insufficient details
+    And list specific questions to ask (e.g., body temperature, duration)
 
-  Scenario: Insufficient information
-    Given symptom information is incomplete
-    When triage begins
-    Then additional information should be requested
-    Before assigning a priority level
+  Scenario: Override suggested priority
+    Given the Triage Agent recommends "urgent" priority
+    When the nurse overrides the priority to "emergency"
+    Then the patient should be queued with "emergency" priority
+    And the override details and reason should be recorded in the audit log

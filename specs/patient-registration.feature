@@ -21,3 +21,21 @@ Feature: Patient Registration
     When the receptionist submits the form
     Then the system should highlight the missing required fields
     And the registration should not be completed
+Scenario: Detect a likely duplicate patient
+  Given a patient with similar identifying information already exists
+  When the receptionist registers another patient
+  Then the system should identify potential duplicate records
+  And display the matching reasons
+  And require confirmation before creating a new patient record
+
+Scenario: Detect duplicates despite formatting differences
+  Given a patient named "Zain Pawle" already exists
+  When the receptionist registers "zain pawle"
+  Then the system should recognize the records as potential duplicates
+  And suggest the existing patient profile
+
+Scenario: Override duplicate warning
+  Given a potential duplicate has been detected
+  When the receptionist confirms the patient is different
+  Then a new patient record should be created
+  And the override should be recorded in the audit log

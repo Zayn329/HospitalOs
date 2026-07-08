@@ -195,75 +195,114 @@ Future runtime integrations may include:
 
 ## Patient Registration
 
-Implementation
-
-Standard CRUD
-
-Runtime Agent
-
-Reception Agent (optional assistance)
-
-LangGraph
-
-No
-
-MCP
-
-None required
-
-Minimum Intelligence
-
-Suggest possible duplicate patients before creating a new record.
-
----
-
-## Appointment Management
-
-Implementation
+Implementation Category
 
 AI Assisted
 
 Runtime Agent
 
-Reception Agent
+Reception Intelligence Agent
+
+Purpose
+
+Assist reception staff during patient registration by preventing duplicate patient records using semantic reasoning rather than exact matching.
+
+LangGraph
+
+Not Required
+
+Reason
+
+Duplicate detection is a single reasoning task and does not require orchestration between multiple AI agents.
+
+MCP
+
+None required.
+
+Future integration with an EMR/Patient Record MCP may improve duplicate detection across external hospital systems.
+
+Minimum Intelligence Requirements
+
+The Reception Intelligence Agent must:
+
+- Detect likely duplicate patients using semantic reasoning.
+- Compare names despite spelling differences, abbreviations, nicknames, or letter casing.
+- Consider multiple attributes including name, phone number, date of birth, address, and previous hospital records.
+- Produce a confidence score indicating the likelihood that two records represent the same patient.
+- Explain why a patient was flagged as a potential duplicate.
+- Never automatically merge patient records.
+- Always require human confirmation before creating a new patient record when a high-confidence duplicate is detected.
+
+Deterministic Responsibilities
+
+The backend should remain responsible for:
+
+- Required field validation
+- Hospital ID generation
+- Database persistence
+- Authentication
+- Authorization
+- Duplicate prevention after user confirmation
+
+AI should augment registration rather than replace deterministic validation.
+
+---
+## Appointment Management
+
+Implementation Category
+
+AI Assisted
+
+Runtime Agent
+
+Scheduling Intelligence Agent
+
+Purpose
+
+Assist reception staff by recommending the most appropriate appointment rather than simply booking the first available slot.
 
 LangGraph
 
 Optional
 
-MCP
+Reason
 
-Calendar MCP (future)
+Current scheduling requires only one reasoning step.
 
-Minimum Intelligence
+LangGraph should only be introduced when scheduling involves multiple agents or external systems such as referrals, calendars, departments, or resource allocation.
 
-Suggest available appointment slots and reduce scheduling conflicts.
+Future MCP Integrations
 
+- Calendar MCP
+- Notification MCP
+
+Minimum Intelligence Requirements
+
+The Scheduling Intelligence Agent must:
+
+- Detect scheduling conflicts.
+- Prevent double booking.
+- Recommend alternative appointment slots.
+- Consider doctor specialty.
+- Consider doctor workload.
+- Consider appointment duration.
+- Consider patient urgency.
+- Explain why a recommendation is being made.
+
+Deterministic Responsibilities
+
+The backend should remain responsible for:
+
+- Slot availability validation
+- Database transactions
+- Booking persistence
+- Cancellation
+- Rescheduling
+- Schedule updates
+
+AI should improve scheduling quality rather than replace scheduling rules.
 ---
 
-## Patient Check-In
-
-Implementation
-
-Standard CRUD
-
-Runtime Agent
-
-Reception Agent
-
-LangGraph
-
-No
-
-MCP
-
-None
-
-Minimum Intelligence
-
-Automatically update patient workflow state.
-
----
 
 ## Patient Consultation
 

@@ -24,7 +24,10 @@ const rescheduleSchema = z.object({
 
 const suggestSchema = z.object({
   doctorId: z.string().min(1, "Doctor ID is required"),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  urgency: z.enum(['low', 'medium', 'high']).optional(),
+  reason: z.string().optional(),
+  appointmentType: z.string().optional()
 });
 
 // GET /doctors - Retrieve all doctors
@@ -96,11 +99,20 @@ router.post('/appointments', async (req: Request, res: Response, next: NextFunct
     });
 
     if (doctorConflict) {
+      const activeBookings = await Appointment.find({
+        doctorId,
+        appointmentDate,
+        status: { $ne: 'cancelled' }
+      });
+      const bookedTimes = activeBookings.map(b => b.appointmentTime);
+      const alternatives = doctor.availability.filter(slot => !bookedTimes.includes(slot));
+
       return res.status(409).json({
         success: false,
         error: {
           code: 'DOUBLE_BOOKING',
-          message: `Dr. ${doctor.lastName} is already booked at ${appointmentTime} on ${appointmentDate}.`
+          message: `Dr. ${doctor.lastName} is already booked at ${appointmentTime} on ${appointmentDate}.`,
+          alternatives
         }
       });
     }
@@ -223,16 +235,39 @@ router.patch('/appointments/:id/cancel', async (req: Request, res: Response, nex
       });
     }
 
+    const originalTime = appointment.appointmentTime;
+    const originalDate = appointment.appointmentDate;
+    const doctorId = appointment.doctorId;
+
     appointment.status = 'cancelled';
     await appointment.save();
 
     const populated = await Appointment.findById(id)
       .populate('patientId', 'firstName lastName hospitalId')
-      .populate('doctorId', 'firstName lastName specialization');
+      .populate('doctorId', 'firstName lastName specialization department');
+
+    const doctor = populated.doctorId as any;
+
+    // Find other active appointments scheduled for the same doctor and same day but at a later time
+    const laterAppointments = await Appointment.find({
+      doctorId,
+      appointmentDate: originalDate,
+      status: 'confirmed',
+      appointmentTime: { $gt: originalTime }
+    }).populate('patientId', 'firstName lastName hospitalId');
+
+    const rescheduleRecommendations = laterAppointments.map(appt => ({
+      appointmentId: appt._id,
+      patientName: `${(appt.patientId as any).firstName} ${(appt.patientId as any).lastName}`,
+      currentTime: appt.appointmentTime,
+      recommendedTime: originalTime,
+      reason: `Dr. ${doctor?.lastName || 'doctor'}'s earlier slot at ${originalTime} became available due to cancellation.`
+    }));
 
     return res.status(200).json({
       success: true,
       data: populated,
+      rescheduleRecommendations,
       message: 'Appointment cancelled successfully. Time slot is now open.'
     });
   } catch (error) {
@@ -251,7 +286,7 @@ router.post('/appointments/suggest', async (req: Request, res: Response, next: N
       });
     }
 
-    const { doctorId, date } = req.body;
+    const { doctorId, date, urgency, reason, appointmentType } = req.body;
 
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) {
@@ -283,9 +318,14 @@ router.post('/appointments/suggest', async (req: Request, res: Response, next: N
       body: JSON.stringify({
         doctorId: doctor._id.toString(),
         doctorName: `${doctor.firstName} ${doctor.lastName}`,
+        specialization: doctor.specialization,
+        department: doctor.department,
         date,
         availability: doctor.availability,
-        existingAppointments
+        existingAppointments,
+        urgency: urgency || 'low',
+        reason: reason || '',
+        appointmentType: appointmentType || 'consultation'
       }),
       signal: AbortSignal.timeout(5000)
     });

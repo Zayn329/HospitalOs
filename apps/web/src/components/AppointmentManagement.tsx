@@ -53,12 +53,17 @@ export default function AppointmentManagement() {
   const [selectedTime, setSelectedTime] = useState('');
   const [reason, setReason] = useState('');
   const [appointmentType, setAppointmentType] = useState('consultation');
+  const [urgency, setUrgency] = useState('low');
 
   // AI slot recommendation state
   const [aiLoading, setAiLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
   const [suggestedSlots, setSuggestedSlots] = useState<string[]>([]);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+
+  // Double-booking & Reschedule suggestion state
+  const [doubleBookingAlternatives, setDoubleBookingAlternatives] = useState<string[]>([]);
+  const [rescheduleRecommendations, setRescheduleRecommendations] = useState<any[]>([]);
 
   // Reschedule state
   const [reschedulingApptId, setReschedulingApptId] = useState<string | null>(null);
@@ -111,6 +116,7 @@ export default function AppointmentManagement() {
     setSuggestedSlots([]);
     setBookedSlots([]);
     setSelectedTime('');
+    setDoubleBookingAlternatives([]);
 
     try {
       const response = await fetch('http://localhost:5000/api/v1/appointments/suggest', {
@@ -118,7 +124,10 @@ export default function AppointmentManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           doctorId: selectedDoctorId,
-          date: selectedDate
+          date: selectedDate,
+          urgency,
+          reason: reason.trim(),
+          appointmentType
         })
       });
 
@@ -143,6 +152,7 @@ export default function AppointmentManagement() {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
+    setDoubleBookingAlternatives([]);
 
     if (!selectedPatientId || !selectedDoctorId || !selectedDate || !selectedTime) {
       setError("Please fill out all required fields and select an appointment time slot.");
@@ -173,9 +183,13 @@ export default function AppointmentManagement() {
         setReason('');
         setAiRecommendation(null);
         setSuggestedSlots([]);
+        setDoubleBookingAlternatives([]);
         // Reload appointments list
         fetchData();
       } else {
+        if (result.error?.code === 'DOUBLE_BOOKING' && result.error.alternatives) {
+          setDoubleBookingAlternatives(result.error.alternatives);
+        }
         setError(result.error?.message || "Booking request failed.");
       }
     } catch (err) {
@@ -189,6 +203,7 @@ export default function AppointmentManagement() {
   const handleCancelAppointment = async (id: string) => {
     setError(null);
     setSuccessMessage(null);
+    setRescheduleRecommendations([]);
     try {
       const response = await fetch(`http://localhost:5000/api/v1/appointments/${id}/cancel`, {
         method: 'PATCH'
@@ -196,6 +211,9 @@ export default function AppointmentManagement() {
       const result = await response.json();
       if (response.status === 200) {
         setSuccessMessage("Appointment cancelled successfully. Time slot has been freed.");
+        if (result.rescheduleRecommendations && result.rescheduleRecommendations.length > 0) {
+          setRescheduleRecommendations(result.rescheduleRecommendations);
+        }
         fetchData();
       } else {
         setError(result.error?.message || "Cancellation request failed.");
@@ -255,6 +273,80 @@ export default function AppointmentManagement() {
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-3 text-sm">
           <CheckCircle className="w-5 h-5 flex-shrink-0" />
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Double booking alternatives warning */}
+      {error && doubleBookingAlternatives.length > 0 && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-450 flex flex-col gap-2 text-sm">
+          <span className="font-semibold flex items-center gap-2 text-amber-400">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-400" />
+            Double-booking conflict. Doctor has other available slots on this day:
+          </span>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {doubleBookingAlternatives.map((slot) => (
+              <button
+                key={slot}
+                onClick={() => {
+                  setSelectedTime(slot);
+                  setDoubleBookingAlternatives([]);
+                  setError(null);
+                }}
+                className="py-1.5 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-500/25 font-mono text-xs font-semibold transition-colors"
+              >
+                {slot} (Select Slot)
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Recommendations Alert */}
+      {rescheduleRecommendations.length > 0 && (
+        <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex flex-col gap-2 text-sm">
+          <span className="font-semibold flex items-center gap-2 text-indigo-400">
+            <RefreshCw className="w-5 h-5 text-indigo-400" />
+            Reschedule Recommendations (Earlier slot became available):
+          </span>
+          <p className="text-xs text-slate-450">
+            The following patients are booked later today. You can contact them to move them to the newly freed slot:
+          </p>
+          <div className="space-y-3 mt-1">
+            {rescheduleRecommendations.map((rec, idx) => (
+              <div key={idx} className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="text-xs text-slate-300">
+                  <span className="font-semibold">{rec.patientName}</span> is currently booked at <span className="font-mono text-amber-400 font-semibold">{rec.currentTime}</span>.
+                  <div className="text-[10px] text-slate-500 mt-0.5">{rec.reason}</div>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`http://localhost:5000/api/v1/appointments/${rec.appointmentId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          appointmentDate: selectedDate || new Date().toISOString().split('T')[0],
+                          appointmentTime: rec.recommendedTime
+                        })
+                      });
+                      if (response.ok) {
+                        setSuccessMessage(`Successfully rescheduled ${rec.patientName} to ${rec.recommendedTime}!`);
+                        setRescheduleRecommendations(prev => prev.filter(r => r.appointmentId !== rec.appointmentId));
+                        fetchData();
+                      } else {
+                        setError("Failed to reschedule patient.");
+                      }
+                    } catch (err) {
+                      setError("Network error rescheduling patient.");
+                    }
+                  }}
+                  className="py-1.5 px-3 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/35 text-indigo-200 border border-indigo-500/25 text-xs font-semibold transition-colors flex-shrink-0"
+                >
+                  Reschedule to {rec.recommendedTime}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -354,6 +446,20 @@ export default function AppointmentManagement() {
                   <option value="follow_up">Follow Up</option>
                   <option value="emergency">Emergency</option>
                   <option value="routine">Routine Check</option>
+                </select>
+              </div>
+
+              {/* Urgency */}
+              <div>
+                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Urgency Level</label>
+                <select
+                  value={urgency}
+                  onChange={(e) => setUrgency(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-300 focus:outline-none transition-colors"
+                >
+                  <option value="low">Low (Routine)</option>
+                  <option value="medium">Medium (Moderate Symptoms)</option>
+                  <option value="high">High (Urgent Consultation)</option>
                 </select>
               </div>
             </form>

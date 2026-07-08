@@ -21,3 +21,21 @@ Feature: Appointment Management
     When the appointment is cancelled
     Then the time slot should become available
     And all affected parties should be notified
+
+Scenario: Prevent double booking
+  Given a doctor already has a confirmed appointment at the requested time
+  When another appointment is requested
+  Then the appointment should not be confirmed
+  And alternative appointment slots should be suggested
+
+Scenario: Recommend the best appointment slot
+  Given multiple appointment slots are available
+  When a patient requests an appointment
+  Then the system should recommend the most suitable slot
+  And explain the recommendation
+
+Scenario: Handle appointment cancellation
+  Given a confirmed appointment has been cancelled
+  When the schedule is updated
+  Then the cancelled slot should become immediately available
+  And affected patients should receive updated recommendations

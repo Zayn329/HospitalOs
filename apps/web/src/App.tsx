@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, XCircle, RefreshCw, Cpu, Database, Activity, Terminal, UserPlus, Users, LogOut, Key, Calendar } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, RefreshCw, Cpu, Database, Activity, Terminal, UserPlus, Users, LogOut, Key, Calendar, FileText } from 'lucide-react';
 import PatientRegistration from './components/PatientRegistration.tsx';
 import Login from './components/Login.tsx';
 import AppointmentManagement from './components/AppointmentManagement.tsx';
+import PatientCheckin from './components/PatientCheckin.tsx';
+import PatientTriage from './components/PatientTriage.tsx';
+import DoctorWorkspace from './components/DoctorWorkspace.tsx';
+import MedicalDocumentation from './components/MedicalDocumentation.tsx';
+import DiagnosticsConsole from './components/DiagnosticsConsole.tsx';
 
 interface HealthDetails {
   api: 'UP' | 'DOWN';
@@ -43,7 +48,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments'>('appointments');
+  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics'>('appointments');
 
   // Diagnostics State
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -268,6 +273,41 @@ export default function App() {
                 Patient Registration
               </button>
               <button
+                onClick={() => setActiveTab('checkin')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'checkin' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Users className="w-4 h-4" />
+                Patient Check-In
+              </button>
+              <button
+                onClick={() => setActiveTab('triage')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'triage' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Activity className="w-4 h-4" />
+                Patient Triage
+              </button>
+              <button
+                onClick={() => setActiveTab('consultation')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'consultation' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Activity className="w-4 h-4" />
+                Consultation Workspace
+              </button>
+              <button
+                onClick={() => setActiveTab('documentation')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'documentation' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <FileText className="w-4 h-4" />
+                Medical Documentation
+              </button>
+              <button
+                onClick={() => setActiveTab('diagnostics')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'diagnostics' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <FileText className="w-4 h-4" />
+                Diagnostics Console
+              </button>
+              <button
                 onClick={() => setActiveTab('health')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'health' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
               >
@@ -349,6 +389,31 @@ export default function App() {
         {/* Tab 1.5: Appointment Management */}
         {activeTab === 'appointments' && (
           <AppointmentManagement />
+        )}
+
+        {/* Tab 1.6: Patient Check-In */}
+        {activeTab === 'checkin' && (
+          <PatientCheckin />
+        )}
+
+        {/* Tab 1.7: Patient Triage */}
+        {activeTab === 'triage' && (
+          <PatientTriage />
+        )}
+
+        {/* Tab 1.8: Consultation Workspace */}
+        {activeTab === 'consultation' && (
+          <DoctorWorkspace />
+        )}
+
+        {/* Tab 1.9: Medical Documentation */}
+        {activeTab === 'documentation' && (
+          <MedicalDocumentation />
+        )}
+
+        {/* Tab 1.10: Diagnostics Console */}
+        {activeTab === 'diagnostics' && (
+          <DiagnosticsConsole />
         )}
 
         {/* Tab 2: System Diagnostics */}

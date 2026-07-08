@@ -4,6 +4,11 @@ import healthRouter from './routes/health.js';
 import patientRouter from './routes/patient.js';
 import authRouter from './routes/auth.js';
 import appointmentRouter from './routes/appointment.js';
+import checkinRouter from './routes/checkin.js';
+import triageRouter from './routes/triage.js';
+import consultationRouter from './routes/consultation.js';
+import documentationRouter from './routes/documentation.js';
+import diagnosticsRouter from './routes/diagnostics.js';
 
 const app = express();
 
@@ -21,6 +26,11 @@ app.use('/api/v1', healthRouter);
 app.use('/api/v1', patientRouter);
 app.use('/api/v1', authRouter);
 app.use('/api/v1', appointmentRouter);
+app.use('/api/v1', checkinRouter);
+app.use('/api/v1', triageRouter);
+app.use('/api/v1', consultationRouter);
+app.use('/api/v1', documentationRouter);
+app.use('/api/v1', diagnosticsRouter);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
