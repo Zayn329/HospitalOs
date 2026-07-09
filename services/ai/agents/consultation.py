@@ -144,6 +144,13 @@ def api_allergy_check(payload: AllergyCheckRequest):
     warnings = result.get("warnings", [])
     return AllergyCheckResponse(warnings=warnings, isConflict=len(warnings) > 0)
 
+def ensure_string(val):
+    if val is None:
+        return ""
+    if isinstance(val, (dict, list)):
+        return json.dumps(val)
+    return str(val)
+
 @router.post("/soap-notes", response_model=SoapNotesResponse)
 def api_soap_notes(payload: SoapNotesRequest):
     initial_state = {
@@ -158,10 +165,10 @@ def api_soap_notes(payload: SoapNotesRequest):
     result = compiled_graph.invoke(initial_state)
     soap = result.get("soap_notes", {})
     return SoapNotesResponse(
-        subjective=soap.get("subjective", ""),
-        objective=soap.get("objective", ""),
-        assessment=soap.get("assessment", ""),
-        plan=soap.get("plan", "")
+        subjective=ensure_string(soap.get("subjective", "")),
+        objective=ensure_string(soap.get("objective", "")),
+        assessment=ensure_string(soap.get("assessment", "")),
+        plan=ensure_string(soap.get("plan", ""))
     )
 
 class EnhanceNotesRequest(BaseModel):
@@ -187,10 +194,10 @@ def api_enhance_notes(payload: EnhanceNotesRequest):
             content = content.replace("```json", "").replace("```", "").strip()
         data = json.loads(content)
         return SoapNotesResponse(
-            subjective=data.get("subjective", ""),
-            objective=data.get("objective", ""),
-            assessment=data.get("assessment", ""),
-            plan=data.get("plan", "")
+            subjective=ensure_string(data.get("subjective", "")),
+            objective=ensure_string(data.get("objective", "")),
+            assessment=ensure_string(data.get("assessment", "")),
+            plan=ensure_string(data.get("plan", ""))
         )
     except Exception as e:
         print(f"Groq enhancement failed: {e}")
