@@ -11,6 +11,7 @@ import DiagnosticsConsole from './components/DiagnosticsConsole.tsx';
 import BillingConsole from './components/BillingConsole.tsx';
 import DischargeWorkspace from './components/DischargeWorkspace.tsx';
 import HospitalAnalytics from './components/HospitalAnalytics.tsx';
+import { MediKioskIntake } from './components/MediKioskIntake.tsx';
 
 interface HealthDetails {
   api: 'UP' | 'DOWN';
@@ -51,7 +52,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge' | 'analytics'>('appointments');
+  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge' | 'analytics' | 'medikiosk'>('medikiosk');
 
   // Diagnostics State
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -325,6 +326,13 @@ export default function App() {
                 Patient Discharge
               </button>
               <button
+                onClick={() => setActiveTab('medikiosk')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'medikiosk' ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Cpu className="w-4 h-4 text-teal-400" />
+                MediKiosk Intake
+              </button>
+              <button
                 onClick={() => setActiveTab('analytics')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
               >
@@ -450,7 +458,12 @@ export default function App() {
           <DischargeWorkspace token={token} addLog={addLog} />
         )}
 
-        {/* Tab 1.13: Hospital Analytics */}
+        {/* Tab 1.13: MediKiosk Intake */}
+        {activeTab === 'medikiosk' && (
+          <MediKioskIntake />
+        )}
+
+        {/* Tab 1.14: Hospital Analytics */}
         {activeTab === 'analytics' && (
           <HospitalAnalytics />
         )}
