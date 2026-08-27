@@ -7,6 +7,7 @@ router = APIRouter()
 
 class OcrRequest(BaseModel):
     filePath: Optional[str] = None
+    filePaths: Optional[List[str]] = None
     rawText: Optional[str] = None
     docType: Optional[str] = "Prescription"
 
@@ -47,6 +48,7 @@ async def process_medikiosk_ocr(payload: OcrRequest):
     try:
         ocr_result = extract_ocr_document(
             file_path=payload.filePath,
+            file_paths=payload.filePaths,
             raw_text=payload.rawText,
             doc_type=payload.docType or "Prescription"
         )

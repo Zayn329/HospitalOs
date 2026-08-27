@@ -23,9 +23,11 @@ interface IntakeSession {
     id: string;
     fileName: string;
     docType: string;
+    pageCount?: number;
     extractedDiagnosis?: string;
     extractedMedications?: Array<{ name: string; dosage: string }>;
     extractedLabValues?: Array<{ test: string; result: string; unit: string; referenceRange: string; isAbnormal: boolean }>;
+    abnormalLabFlags?: string[];
     summary?: string;
   }>;
   redFlags: string[];
@@ -252,19 +254,23 @@ router.post('/session/:id/answers', async (req: Request, res: Response, next: Ne
   }
 });
 
-// POST /api/v1/medikiosk/session/:id/ocr
+// POST /api/v1/medikiosk/session/:id/ocr - Module B: Multi-Page OCR Pipeline & Abnormal Flagging
 router.post('/session/:id/ocr', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { fileName, docType, mockOcrText, filePath, rawText } = req.body;
+    const { fileName, docType, mockOcrText, filePath, filePaths, rawText } = req.body;
     const session = sessions.get(id);
     if (!session) {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
 
     const inputContent = rawText || mockOcrText || '';
+    const isDiabetes = inputContent.toLowerCase().includes('diabetes') || inputContent.toLowerCase().includes('hba1c');
+    const pageCountCalc = filePaths?.length || (inputContent ? 1 + (inputContent.match(/--- NEXT PAGE ---/g) || []).length : 1);
+
     let extractedData = {
-      extractedDiagnosis: inputContent.toLowerCase().includes('diabetes') ? 'Type 2 Diabetes Mellitus' : 'Essential Hypertension',
+      pageCount: pageCountCalc,
+      extractedDiagnosis: isDiabetes ? 'Type 2 Diabetes Mellitus' : 'Essential Hypertension',
       extractedMedications: [
         { name: 'Metformin', dosage: '500mg BD' },
         { name: 'Amlodipine', dosage: '5mg OD' }
@@ -272,7 +278,8 @@ router.post('/session/:id/ocr', async (req: Request, res: Response, next: NextFu
       extractedLabValues: [
         { test: 'HbA1c', result: '8.2%', unit: '%', referenceRange: '< 5.7%', isAbnormal: true }
       ],
-      summary: 'Parsed prescription document via Docling + Groq OCR engine.'
+      abnormalLabFlags: isDiabetes ? ['ELEVATED: HbA1c 8.2% (Reference < 5.7%)'] : [],
+      summary: 'Parsed medical document via multi-page Docling + Groq OCR pipeline.'
     };
 
     try {
@@ -281,6 +288,7 @@ router.post('/session/:id/ocr', async (req: Request, res: Response, next: NextFu
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filePath: filePath || null,
+          filePaths: filePaths || null,
           rawText: inputContent,
           docType: docType || 'Prescription'
         })

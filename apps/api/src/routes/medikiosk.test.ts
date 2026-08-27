@@ -65,19 +65,21 @@ test('MediKiosk AI Clinical Intake Engine API Suite', async (t) => {
     assert.strictEqual(res.body.data.historyRecorded.socrates.character, 'Crushing');
   });
 
-  await t.test('POST /api/v1/medikiosk/session/:id/ocr - should digitize scanned prescriptions/lab reports with OCR extraction', async () => {
+  await t.test('POST /api/v1/medikiosk/session/:id/ocr - Module B: Multi-Page OCR & Abnormal Lab Flagging', async () => {
     const res = await request(app)
       .post(`/api/v1/medikiosk/session/${sessionId}/ocr`)
       .send({
-        fileName: 'Old_Prescription_2023.jpg',
-        docType: 'Prescription',
-        mockOcrText: 'Handwritten Rx: Type 2 Diabetes Mellitus, HbA1c 8.2% High'
+        fileName: 'MultiPage_Lab_Report.pdf',
+        docType: 'Lab Report',
+        rawText: 'Page 1: Prescription Metformin 500mg BD. Diagnosis: Type 2 Diabetes Mellitus\n--- NEXT PAGE ---\nPage 2: Labs HbA1c 8.4% High, Serum Creatinine 1.5 mg/dL High'
       });
 
     assert.strictEqual(res.status, 201);
     assert.strictEqual(res.body.success, true);
     assert.strictEqual(res.body.data.document.extractedDiagnosis, 'Type 2 Diabetes Mellitus');
+    assert.ok(res.body.data.document.pageCount >= 2);
     assert.strictEqual(res.body.data.document.extractedLabValues[0].isAbnormal, true);
+    assert.ok(res.body.data.document.abnormalLabFlags.length > 0);
   });
 
   await t.test('POST /api/v1/medikiosk/session/:id/summary - should generate bilingual SOAP summary for doctor screen', async () => {
