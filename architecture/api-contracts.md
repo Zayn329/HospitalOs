@@ -205,6 +205,18 @@ Repeated identical requests should not unintentionally create duplicate records.
 
 ---
 
+# MediKiosk API Endpoints (`/api/v1/medikiosk`)
+
+* **POST `/api/v1/medikiosk/session/start`** - Initiates session, generates mock ABHA ID, returns localized consent prompt.
+* **POST `/api/v1/medikiosk/session/:id/consent`** - Records DPDP Act 2023 audio/touch consent.
+* **POST `/api/v1/medikiosk/session/:id/questions`** - Generates adaptive SOCRATES / AYUSH questioning flow and evaluates red flags.
+* **POST `/api/v1/medikiosk/session/:id/answers`** - Stores structured intake responses.
+* **POST `/api/v1/medikiosk/session/:id/ocr`** - Digitizes scanned paper prescriptions/lab reports with abnormal value extraction.
+* **POST `/api/v1/medikiosk/session/:id/summary`** - Synthesizes bilingual SOAP draft summary for doctor screen.
+* **DELETE `/api/v1/medikiosk/session/:id`** - Securely wipes session memory upon intake completion.
+
+---
+
 # Documentation
 
 Every endpoint should include:

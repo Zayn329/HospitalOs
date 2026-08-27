@@ -12,6 +12,7 @@ import diagnosticsRouter from './routes/diagnostics.js';
 import billingRouter from './routes/billing.js';
 import dischargeRouter from './routes/discharge.js';
 import analyticsRouter from './routes/analytics.js';
+import medikioskRouter from './routes/medikiosk.js';
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/v1', diagnosticsRouter);
 app.use('/api/v1', billingRouter);
 app.use('/api/v1', dischargeRouter);
 app.use('/api/v1', analyticsRouter);
+app.use('/api/v1/medikiosk', medikioskRouter);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
