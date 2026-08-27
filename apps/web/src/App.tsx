@@ -10,6 +10,7 @@ import MedicalDocumentation from './components/MedicalDocumentation.tsx';
 import DiagnosticsConsole from './components/DiagnosticsConsole.tsx';
 import BillingConsole from './components/BillingConsole.tsx';
 import DischargeWorkspace from './components/DischargeWorkspace.tsx';
+import HospitalAnalytics from './components/HospitalAnalytics.tsx';
 
 interface HealthDetails {
   api: 'UP' | 'DOWN';
@@ -50,7 +51,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge'>('appointments');
+  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge' | 'analytics'>('appointments');
 
   // Diagnostics State
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -324,6 +325,13 @@ export default function App() {
                 Patient Discharge
               </button>
               <button
+                onClick={() => setActiveTab('analytics')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Activity className="w-4 h-4" />
+                Hospital Analytics
+              </button>
+              <button
                 onClick={() => setActiveTab('health')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'health' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
               >
@@ -440,6 +448,11 @@ export default function App() {
         {/* Tab 1.12: Patient Discharge */}
         {activeTab === 'discharge' && (
           <DischargeWorkspace token={token} addLog={addLog} />
+        )}
+
+        {/* Tab 1.13: Hospital Analytics */}
+        {activeTab === 'analytics' && (
+          <HospitalAnalytics />
         )}
 
         {/* Tab 2: System Diagnostics */}
