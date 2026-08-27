@@ -8,6 +8,22 @@ interface IntakeSession {
   sessionId: string;
   patientId?: string;
   abhaId?: string;
+  abhaDetails?: {
+    abhaId: string;
+    abhaAddress?: string;
+    name?: string;
+    gender?: string;
+    dob?: string;
+    verificationStatus: 'VERIFIED' | 'SANDBOX_PENDING';
+  };
+  dpdpConsent?: {
+    shareHistory: boolean;
+    shareScannedDocs: boolean;
+    shareAnalytics: boolean;
+    accessDurationHours: number;
+    timestamp: Date;
+    complianceVersion: 'DPDP-2023-V1';
+  };
   language: string;
   mode: 'allopathy' | 'ayush';
   consentGiven: boolean;
@@ -88,7 +104,16 @@ function detectRedFlags(chiefComplaint: string, socrates: Record<string, string>
 const startSessionSchema = z.object({
   language: z.string().default('hi'),
   mode: z.enum(['allopathy', 'ayush']).default('allopathy'),
-  abhaId: z.string().optional()
+  abhaId: z.string().optional(),
+  aadhaarNumber: z.string().optional(),
+  aadhaarOtp: z.string().optional()
+});
+
+const granularConsentSchema = z.object({
+  shareHistory: z.boolean().default(true),
+  shareScannedDocs: z.boolean().default(true),
+  shareAnalytics: z.boolean().default(false),
+  accessDurationHours: z.number().default(24)
 });
 
 const submitAnswersSchema = z.object({
@@ -99,17 +124,30 @@ const submitAnswersSchema = z.object({
   allergies: z.array(z.string()).optional()
 });
 
-// POST /api/v1/medikiosk/session/start
+// POST /api/v1/medikiosk/session/start - Module D: ABDM Sandbox Auth & Session Init
 router.post('/session/start', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { language, mode, abhaId } = startSessionSchema.parse(req.body);
+    const { language, mode, abhaId, aadhaarNumber, aadhaarOtp } = startSessionSchema.parse(req.body);
     const sessionId = `Kiosk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const generatedAbhaId = abhaId || (aadhaarNumber ? `ABHA-${aadhaarNumber.slice(-4)}-SANDBOX` : `ABHA-MOCK-${Math.floor(10000000000000 + Math.random() * 90000000000000)}`);
+    const isVerified = Boolean(aadhaarOtp || abhaId || aadhaarNumber);
+
+    const abhaDetails = {
+      abhaId: generatedAbhaId,
+      abhaAddress: `${generatedAbhaId.toLowerCase()}@abdm`,
+      name: 'Patient Verified Profile',
+      gender: 'M',
+      dob: '1988-05-14',
+      verificationStatus: isVerified ? 'VERIFIED' as const : 'SANDBOX_PENDING' as const
+    };
 
     const newSession: IntakeSession = {
       sessionId,
       language,
       mode,
-      abhaId: abhaId || `ABHA-MOCK-${Math.floor(10000000000000 + Math.random() * 90000000000000)}`,
+      abhaId: generatedAbhaId,
+      abhaDetails,
       consentGiven: false,
       history: {},
       scannedDocuments: [],
@@ -125,11 +163,12 @@ router.post('/session/start', async (req: Request, res: Response, next: NextFunc
       data: {
         sessionId: newSession.sessionId,
         abhaId: newSession.abhaId,
+        abhaDetails: newSession.abhaDetails,
         language: newSession.language,
         mode: newSession.mode,
         audioConsentPrompt: newSession.language === 'hi'
           ? 'क्या आप अपने स्वास्थ्य डेटा को डॉक्टर के साथ साझा करने की सहमति देते हैं?'
-          : 'Do you consent to sharing your medical history with the treating physician under ABDM guidelines?'
+          : 'Do you consent to sharing your medical history with the treating physician under ABDM & DPDP Act guidelines?'
       }
     });
   } catch (err) {
@@ -137,7 +176,7 @@ router.post('/session/start', async (req: Request, res: Response, next: NextFunc
   }
 });
 
-// POST /api/v1/medikiosk/session/:id/consent
+// POST /api/v1/medikiosk/session/:id/consent - Module D: Granular Consent under DPDP Act 2023
 router.post('/session/:id/consent', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
@@ -146,13 +185,28 @@ router.post('/session/:id/consent', async (req: Request, res: Response, next: Ne
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
 
+    const { shareHistory, shareScannedDocs, shareAnalytics, accessDurationHours } = granularConsentSchema.parse(req.body || {});
+
     session.consentGiven = true;
+    session.dpdpConsent = {
+      shareHistory,
+      shareScannedDocs,
+      shareAnalytics,
+      accessDurationHours,
+      timestamp: new Date(),
+      complianceVersion: 'DPDP-2023-V1'
+    };
+
     sessions.set(id, session);
 
     res.json({
       success: true,
-      message: 'Consent recorded successfully under DPDP Act 2023 & ABDM Framework.',
-      data: { sessionId: id, consentGiven: true }
+      message: 'Granular consent recorded successfully under DPDP Act 2023 & ABDM Framework.',
+      data: {
+        sessionId: id,
+        consentGiven: true,
+        dpdpConsent: session.dpdpConsent
+      }
     });
   } catch (err) {
     next(err);
@@ -414,14 +468,17 @@ router.post('/session/:id/summary', async (req: Request, res: Response, next: Ne
   }
 });
 
-// DELETE /api/v1/medikiosk/session/:id - Auto wipe session memory
+// DELETE /api/v1/medikiosk/session/:id - Module D: Ephemeral Session Wipe
 router.delete('/session/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const existed = sessions.delete(id);
     res.json({
       success: true,
-      message: existed ? 'Kiosk session memory securely wiped.' : 'Session ID not active.'
+      message: existed
+        ? 'Kiosk ephemeral session memory securely wiped. Zero patient data retained locally.'
+        : 'Session ID not active or already wiped.',
+      wipedAt: new Date()
     });
   } catch (err) {
     next(err);

@@ -6,29 +6,39 @@ import { app } from '../app.js';
 test('MediKiosk AI Clinical Intake Engine API Suite', async (t) => {
   let sessionId = '';
 
-  await t.test('POST /api/v1/medikiosk/session/start - should initialize kiosk session with ABDM ABHA ID & Audio Prompt', async () => {
+  await t.test('POST /api/v1/medikiosk/session/start - Module D: ABDM ABHA Sandbox Linkage & Verification', async () => {
     const res = await request(app)
       .post('/api/v1/medikiosk/session/start')
       .send({
         language: 'hi',
-        mode: 'allopathy'
+        mode: 'allopathy',
+        aadhaarNumber: '987654321098',
+        aadhaarOtp: '123456'
       });
 
     assert.strictEqual(res.status, 201);
     assert.strictEqual(res.body.success, true);
     assert.ok(res.body.data.sessionId.startsWith('Kiosk-'));
-    assert.ok(res.body.data.audioConsentPrompt.length > 0);
+    assert.ok(res.body.data.abhaId.length > 0);
+    assert.strictEqual(res.body.data.abhaDetails.verificationStatus, 'VERIFIED');
     sessionId = res.body.data.sessionId;
   });
 
-  await t.test('POST /api/v1/medikiosk/session/:id/consent - should record consent under DPDP Act 2023', async () => {
+  await t.test('POST /api/v1/medikiosk/session/:id/consent - Module D: Granular Consent under DPDP Act 2023', async () => {
     const res = await request(app)
       .post(`/api/v1/medikiosk/session/${sessionId}/consent`)
-      .send({});
+      .send({
+        shareHistory: true,
+        shareScannedDocs: true,
+        shareAnalytics: false,
+        accessDurationHours: 24
+      });
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.success, true);
     assert.strictEqual(res.body.data.consentGiven, true);
+    assert.strictEqual(res.body.data.dpdpConsent.shareHistory, true);
+    assert.strictEqual(res.body.data.dpdpConsent.complianceVersion, 'DPDP-2023-V1');
   });
 
   await t.test('POST /api/v1/medikiosk/session/:id/questions - should return adaptive SOCRATES questions & detect red flags', async () => {
@@ -100,11 +110,18 @@ test('MediKiosk AI Clinical Intake Engine API Suite', async (t) => {
     assert.ok(res.body.data.bilingualAudioConfirmation.doctorEnglishSummary.length > 0);
   });
 
-  await t.test('DELETE /api/v1/medikiosk/session/:id - should wipe kiosk session memory securely', async () => {
+  await t.test('DELETE /api/v1/medikiosk/session/:id - Module D: Ephemeral Session Memory Wipe', async () => {
     const res = await request(app)
       .delete(`/api/v1/medikiosk/session/${sessionId}`);
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.success, true);
+    assert.ok(res.body.message.includes('ephemeral session memory securely wiped'));
+
+    // Confirm session is completely purged from memory (returns 404)
+    const checkRes = await request(app)
+      .post(`/api/v1/medikiosk/session/${sessionId}/consent`)
+      .send({});
+    assert.strictEqual(checkRes.status, 404);
   });
 });

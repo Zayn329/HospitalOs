@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Mic, MicOff, AlertTriangle, ShieldCheck, Heart, Sparkles, Send, Volume2, Globe, Stethoscope, FileText, Upload, CheckCircle2, FileCheck, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mic, MicOff, AlertTriangle, ShieldCheck, Heart, Sparkles, Send, Volume2, Globe, Stethoscope, FileText, Upload, CheckCircle2, FileCheck, Layers, Key, Clock, Trash2 } from 'lucide-react';
 
 export const MediKioskIntake: React.FC = () => {
   const [language, setLanguage] = useState<'hi' | 'en'>('hi');
@@ -14,6 +14,23 @@ export const MediKioskIntake: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [doctorSummary, setDoctorSummary] = useState<any>(null);
 
+  // Module D: ABHA / Aadhaar Auth State
+  const [inputAbhaId, setInputAbhaId] = useState<string>('91-2345-6789-0123');
+  const [inputAadhaar, setInputAadhaar] = useState<string>('9876-5432-1098');
+  const [aadhaarOtp, setAadhaarOtp] = useState<string>('123456');
+  const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [abhaDetails, setAbhaDetails] = useState<any>(null);
+
+  // Module D: Granular DPDP Consent State
+  const [shareHistory, setShareHistory] = useState<boolean>(true);
+  const [shareScannedDocs, setShareScannedDocs] = useState<boolean>(true);
+  const [shareAnalytics, setShareAnalytics] = useState<boolean>(false);
+  const [accessDurationHours, setAccessDurationHours] = useState<number>(24);
+
+  // Module D: Ephemeral Memory Wipe & Inactivity Auto-Reset
+  const [inactivityTimer, setInactivityTimer] = useState<number>(60);
+  const [wipeNotice, setWipeNotice] = useState<string | null>(null);
+
   // Module B: OCR State
   const [docType, setDocType] = useState<string>('Lab Report');
   const [docFileName, setDocFileName] = useState<string>('Lab_Report_MultiPage.pdf');
@@ -23,18 +40,46 @@ export const MediKioskIntake: React.FC = () => {
   const [scannedDocs, setScannedDocs] = useState<Array<any>>([]);
   const [digitizing, setDigitizing] = useState(false);
 
-  // Start Session
+  // Inactivity Auto-Reset Countdown Timer for Ephemeral Kiosks
+  useEffect(() => {
+    if (!sessionId) return;
+    const timer = setInterval(() => {
+      setInactivityTimer((prev) => {
+        if (prev <= 1) {
+          handleWipeSessionMemory('Inactivity timeout auto-reset (60s idle threshold reached).');
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [sessionId]);
+
+  // Reset timer on user activity
+  const resetActivityTimer = () => {
+    setInactivityTimer(60);
+  };
+
+  // Start Session with Module D ABHA / Aadhaar Auth
   const handleStartSession = async () => {
     setLoading(true);
+    setWipeNotice(null);
     try {
       const res = await fetch('http://localhost:5000/api/v1/medikiosk/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language, mode })
+        body: JSON.stringify({
+          language,
+          mode,
+          abhaId: inputAbhaId.trim() || undefined,
+          aadhaarNumber: inputAadhaar.trim() || undefined,
+          aadhaarOtp: otpSent ? aadhaarOtp.trim() : undefined
+        })
       });
       const data = await res.json();
       if (data.success) {
         setSessionId(data.data.sessionId);
+        setAbhaDetails(data.data.abhaDetails);
         setStep('consent');
       }
     } catch (err) {
@@ -44,13 +89,25 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
-  // Give Consent
+  // Send ABDM Sandbox OTP Simulation
+  const handleSendAadhaarOtp = () => {
+    setOtpSent(true);
+  };
+
+  // Give Granular DPDP Consent
   const handleGiveConsent = async () => {
+    if (!sessionId) return;
     setLoading(true);
     try {
       const res = await fetch(`http://localhost:5000/api/v1/medikiosk/session/${sessionId}/consent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shareHistory,
+          shareScannedDocs,
+          shareAnalytics,
+          accessDurationHours
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -63,9 +120,36 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
+  // Module D: Ephemeral Session Wipe API Call
+  const handleWipeSessionMemory = async (_reason = 'Manual patient/staff session wipe requested.') => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/v1/medikiosk/session/${sessionId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      setWipeNotice(data.message || 'Session memory securely wiped.');
+    } catch (err) {
+      setWipeNotice('Session memory wiped locally.');
+    } finally {
+      // Reset all kiosk state
+      setSessionId('');
+      setStep('welcome');
+      setChiefComplaint('');
+      setSocratesAnswers({});
+      setDoctorSummary(null);
+      setRedFlags([]);
+      setScannedDocs([]);
+      setAbhaDetails(null);
+      setOtpSent(false);
+      setInactivityTimer(60);
+    }
+  };
+
   // Submit Chief Complaint & Get Adaptive Questions
   const handleSubmitChiefComplaint = async () => {
     if (!chiefComplaint.trim()) return;
+    resetActivityTimer();
     setLoading(true);
     try {
       const res = await fetch(`http://localhost:5000/api/v1/medikiosk/session/${sessionId}/questions`, {
@@ -89,6 +173,7 @@ export const MediKioskIntake: React.FC = () => {
   // Module B: Run OCR Digitization Pipeline
   const handleRunOcrDigitization = async () => {
     if (!sessionId) return;
+    resetActivityTimer();
     setDigitizing(true);
     try {
       const res = await fetch(`http://localhost:5000/api/v1/medikiosk/session/${sessionId}/ocr`, {
@@ -113,16 +198,15 @@ export const MediKioskIntake: React.FC = () => {
 
   // Submit Socrates Answers & Get Summary
   const handleCompleteIntake = async () => {
+    resetActivityTimer();
     setLoading(true);
     try {
-      // Save answers
       await fetch(`http://localhost:5000/api/v1/medikiosk/session/${sessionId}/answers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chiefComplaint, socrates: socratesAnswers })
       });
 
-      // Get summary
       const res = await fetch(`http://localhost:5000/api/v1/medikiosk/session/${sessionId}/summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -141,6 +225,7 @@ export const MediKioskIntake: React.FC = () => {
 
   // Toggle Voice Input Mock
   const toggleVoiceInput = () => {
+    resetActivityTimer();
     setIsListening(!isListening);
     if (!isListening) {
       setTimeout(() => {
@@ -153,7 +238,10 @@ export const MediKioskIntake: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6 space-y-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 shadow-2xl my-4">
+    <div
+      onClick={resetActivityTimer}
+      className="w-full max-w-4xl mx-auto p-6 space-y-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 shadow-2xl my-4 relative"
+    >
       {/* Kiosk Header */}
       <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-4">
         <div className="flex items-center space-x-3">
@@ -164,7 +252,7 @@ export const MediKioskIntake: React.FC = () => {
             <h2 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
               MediKiosk Operating Portal
             </h2>
-            <p className="text-xs text-slate-400">Module A Intake & Module B Multi-Page OCR Digitization Pipeline</p>
+            <p className="text-xs text-slate-400">Modules A, B, C, & D (ABDM Auth, DPDP Compliance, Ephemeral Wipe)</p>
           </div>
         </div>
 
@@ -211,6 +299,14 @@ export const MediKioskIntake: React.FC = () => {
         </div>
       </div>
 
+      {/* Module D: Ephemeral Session Wipe Notification */}
+      {wipeNotice && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center space-x-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{wipeNotice}</span>
+        </div>
+      )}
+
       {/* Red Flags Alert Header */}
       {redFlags.length > 0 && (
         <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center space-x-3 text-rose-300 animate-pulse">
@@ -221,72 +317,187 @@ export const MediKioskIntake: React.FC = () => {
         </div>
       )}
 
-      {/* Step Navigation Bar */}
+      {/* Step Navigation Bar & Module D Inactivity Timer */}
       {sessionId && (
-        <div className="flex items-center justify-between bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs text-slate-400">
-          <span className="font-mono text-teal-400 font-bold px-2">Session: {sessionId}</span>
+        <div className="flex flex-wrap items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs text-slate-400 gap-2">
           <div className="flex items-center space-x-2">
+            <span className="font-mono text-teal-400 font-bold px-2">Session: {sessionId}</span>
+            {abhaDetails && (
+              <span className="px-2 py-0.5 bg-teal-500/20 text-teal-300 rounded font-mono font-bold border border-teal-500/30">
+                ABHA: {abhaDetails.abhaId} ({abhaDetails.verificationStatus})
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <span className="flex items-center space-x-1 text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 font-mono">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Auto-Wipe: {inactivityTimer}s</span>
+            </span>
+
             <button
-              onClick={() => setStep('cc')}
-              className={`px-3 py-1 rounded-lg ${step === 'cc' ? 'bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30' : 'hover:text-white'}`}
+              onClick={() => handleWipeSessionMemory('User manual memory wipe')}
+              className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg flex items-center space-x-1 font-bold transition-all"
+              title="Immediately Wipe Kiosk Session Data"
             >
-              1. Intake
-            </button>
-            <button
-              onClick={() => setStep('socrates')}
-              className={`px-3 py-1 rounded-lg ${step === 'socrates' ? 'bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30' : 'hover:text-white'}`}
-            >
-              2. Questions
-            </button>
-            <button
-              onClick={() => setStep('ocr')}
-              className={`px-3 py-1 rounded-lg ${step === 'ocr' ? 'bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30' : 'hover:text-white'}`}
-            >
-              3. Module B OCR Digitization ({scannedDocs.length})
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Wipe Memory</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 1: Welcome & Mode Selection */}
+      {/* Step 1: Welcome, Mode Selection & Module D ABHA Sandbox Auth */}
       {step === 'welcome' && (
-        <div className="py-10 text-center space-y-6">
-          <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-teal-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <Sparkles className="w-10 h-10 text-slate-950" />
-          </div>
-          <div className="space-y-2 max-w-md mx-auto">
+        <div className="py-6 space-y-6">
+          <div className="text-center space-y-3">
+            <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-teal-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg shadow-teal-500/20">
+              <Sparkles className="w-8 h-8 text-slate-950" />
+            </div>
             <h3 className="text-xl font-bold">
               {language === 'hi' ? 'नमस्कार! कृपया अपनी स्वास्थ्य जानकारी दर्ज करें' : 'Welcome! Self-record your history'}
             </h3>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-400 max-w-md mx-auto">
               {language === 'hi'
-                ? 'डॉक्टर से परामर्श करने से पहले अपनी परेशानी बोलकर या छूकर बताएं और पुराने पर्चे अपलोड करें।'
-                : 'Speak or tap answers and digitize past prescriptions/lab reports with AI OCR.'}
+                ? 'ABDM ABHA आईडी लिंक करें, सहमति दें और अपनी स्वास्थ्य रिपोर्ट डिजिटाइज करें।'
+                : 'Link your ABDM ABHA ID, provide DPDP consent, and digitize medical records.'}
             </p>
           </div>
-          <button
-            onClick={handleStartSession}
-            disabled={loading}
-            className="px-8 py-3 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl shadow-lg hover:brightness-110 transition-all text-sm"
-          >
-            {loading ? 'Initializing Session...' : language === 'hi' ? 'शुरू करें (Start Intake)' : 'Start Intake Session'}
-          </button>
+
+          {/* Module D: ABDM / Aadhaar Sandbox Authentication Card */}
+          <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-4 max-w-lg mx-auto">
+            <div className="flex items-center space-x-2 text-teal-400 font-bold text-sm">
+              <Key className="w-4 h-4" />
+              <span>ABDM ABHA Sandbox Identity Linkage</span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 text-xs">
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">ABHA ID Number (14 Digits):</label>
+                <input
+                  type="text"
+                  value={inputAbhaId}
+                  onChange={(e) => setInputAbhaId(e.target.value)}
+                  placeholder="e.g. 91-2345-6789-0123"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Aadhaar Number (Sandbox Verification):</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inputAadhaar}
+                    onChange={(e) => setInputAadhaar(e.target.value)}
+                    placeholder="12-digit Aadhaar"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendAadhaarOtp}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold border border-slate-700 rounded-lg"
+                  >
+                    Send OTP
+                  </button>
+                </div>
+              </div>
+
+              {otpSent && (
+                <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg space-y-2">
+                  <span className="text-teal-300 font-bold block">Aadhaar Sandbox OTP Sent:</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={aadhaarOtp}
+                      onChange={(e) => setAadhaarOtp(e.target.value)}
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-center tracking-widest"
+                    />
+                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded flex items-center">
+                      ✓ OTP Verified
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="text-center">
+            <button
+              onClick={handleStartSession}
+              disabled={loading}
+              className="px-8 py-3 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl shadow-lg hover:brightness-110 transition-all text-sm"
+            >
+              {loading ? 'Initializing ABDM Session...' : language === 'hi' ? 'शुरू करें (Start Intake)' : 'Start Verified Kiosk Session'}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Step 2: DPDP & ABDM Audio Consent */}
+      {/* Step 2: Module D - Granular DPDP Consent Prompt */}
       {step === 'consent' && (
-        <div className="py-8 space-y-6">
-          <div className="p-6 bg-slate-800/60 border border-slate-700/60 rounded-xl space-y-4">
-            <div className="flex items-center space-x-3 text-teal-400">
-              <ShieldCheck className="w-6 h-6" />
-              <h4 className="font-bold text-lg">DPDP Act 2023 & ABDM Consent Prompt</h4>
+        <div className="py-6 space-y-6">
+          <div className="p-6 bg-slate-800/60 border border-slate-700/60 rounded-xl space-y-5">
+            <div className="flex items-center justify-between text-teal-400">
+              <div className="flex items-center space-x-3">
+                <ShieldCheck className="w-6 h-6" />
+                <h4 className="font-bold text-lg">DPDP Act 2023 Granular Data Consent</h4>
+              </div>
+              <span className="px-2.5 py-1 bg-teal-500/20 text-teal-300 text-xs font-mono font-bold rounded border border-teal-500/30">
+                DPDP-2023-V1
+              </span>
             </div>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              {language === 'hi'
-                ? 'क्या आप अपने स्वास्थ्य इतिहास और पुराने पर्चों की जानकारी डॉक्टर के साथ सुरक्षित रूप से साझा करने की सहमति देते हैं?'
-                : 'Do you consent to securely recording and sharing your clinical history and uploaded documents with your treating doctor under ABDM frameworks?'}
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Under the Digital Personal Data Protection (DPDP) Act 2023 & ABDM guidelines, select granular data permissions before commencing your intake.
             </p>
+
+            {/* Granular Toggles */}
+            <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-slate-200 font-medium">1. Share Clinical History & Symptoms with Treating Doctor</span>
+                <input
+                  type="checkbox"
+                  checked={shareHistory}
+                  onChange={(e) => setShareHistory(e.target.checked)}
+                  className="w-4 h-4 accent-teal-500"
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-slate-200 font-medium">2. Share Scanned Prescriptions & Lab OCR Digitization Timeline</span>
+                <input
+                  type="checkbox"
+                  checked={shareScannedDocs}
+                  onChange={(e) => setShareScannedDocs(e.target.checked)}
+                  className="w-4 h-4 accent-teal-500"
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-slate-200 font-medium">3. Allow Anonymous Quality & Kiosk Analytics Improvement</span>
+                <input
+                  type="checkbox"
+                  checked={shareAnalytics}
+                  onChange={(e) => setShareAnalytics(e.target.checked)}
+                  className="w-4 h-4 accent-teal-500"
+                />
+              </label>
+
+              <div className="pt-2 border-t border-slate-900 flex items-center justify-between">
+                <span className="text-slate-400 font-semibold">Doctor Access Expiry Duration:</span>
+                <select
+                  value={accessDurationHours}
+                  onChange={(e) => setAccessDurationHours(Number(e.target.value))}
+                  className="bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-200 text-xs focus:outline-none"
+                >
+                  <option value={12}>12 Hours</option>
+                  <option value={24}>24 Hours (Default)</option>
+                  <option value={48}>48 Hours</option>
+                </select>
+              </div>
+            </div>
+
             <div className="flex items-center space-x-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
               <Volume2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
               <span>Audio explanation active in {language === 'hi' ? 'Hindi (हिंदी)' : 'English'}. Session automatically wipes upon submission.</span>
@@ -299,7 +510,7 @@ export const MediKioskIntake: React.FC = () => {
               disabled={loading}
               className="px-6 py-2.5 bg-teal-500 text-slate-950 font-bold rounded-xl hover:bg-teal-400 transition-all text-sm"
             >
-              {loading ? 'Processing...' : language === 'hi' ? 'सहमति देता हूँ (I Agree)' : 'I Consent & Accept'}
+              {loading ? 'Processing...' : language === 'hi' ? 'सहमति दर्ज करें (Record Consent)' : 'Confirm Granular Consent'}
             </button>
           </div>
         </div>
@@ -319,7 +530,10 @@ export const MediKioskIntake: React.FC = () => {
             <div className="relative">
               <textarea
                 value={chiefComplaint}
-                onChange={(e) => setChiefComplaint(e.target.value)}
+                onChange={(e) => {
+                  resetActivityTimer();
+                  setChiefComplaint(e.target.value);
+                }}
                 placeholder={
                   language === 'hi'
                     ? 'उदा: 2 दिनों से सीने में दर्द और चक्कर आना...'
@@ -346,7 +560,10 @@ export const MediKioskIntake: React.FC = () => {
               {['Chest Pain', 'Fever & Cough', 'Severe Headache', 'Abdominal Pain', 'Shortness of Breath'].map((sym) => (
                 <button
                   key={sym}
-                  onClick={() => setChiefComplaint(sym)}
+                  onClick={() => {
+                    resetActivityTimer();
+                    setChiefComplaint(sym);
+                  }}
                   className="px-3 py-1.5 bg-slate-800 hover:bg-teal-500/20 hover:border-teal-500/40 border border-slate-700 text-xs rounded-lg text-slate-300 transition-all"
                 >
                   + {sym}
@@ -386,7 +603,10 @@ export const MediKioskIntake: React.FC = () => {
                   {q.options.map((opt) => (
                     <button
                       key={opt}
-                      onClick={() => setSocratesAnswers({ ...socratesAnswers, [q.id]: opt })}
+                      onClick={() => {
+                        resetActivityTimer();
+                        setSocratesAnswers({ ...socratesAnswers, [q.id]: opt });
+                      }}
                       className={`px-3 py-2 text-xs font-medium rounded-lg border text-center transition-all ${
                         socratesAnswers[q.id] === opt
                           ? 'bg-teal-500 text-slate-950 border-teal-400 font-bold shadow-md'
@@ -470,7 +690,10 @@ export const MediKioskIntake: React.FC = () => {
               </label>
               <textarea
                 value={ocrInputText}
-                onChange={(e) => setOcrText(e.target.value)}
+                onChange={(e) => {
+                  resetActivityTimer();
+                  setOcrText(e.target.value);
+                }}
                 rows={4}
                 className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-teal-500"
               />
@@ -599,7 +822,7 @@ export const MediKioskIntake: React.FC = () => {
         </div>
       )}
 
-      {/* Step 5: Module C - Bilingual Draft Summary View */}
+      {/* Step 5: Module C - Bilingual Draft Summary View & Module D Ephemeral Memory Wipe Banner */}
       {step === 'summary' && doctorSummary && (
         <div className="py-6 space-y-6 animate-in fade-in duration-200">
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-emerald-300">
@@ -675,19 +898,13 @@ export const MediKioskIntake: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center space-x-4">
             <button
-              onClick={() => {
-                setStep('welcome');
-                setChiefComplaint('');
-                setSocratesAnswers({});
-                setDoctorSummary(null);
-                setRedFlags([]);
-                setScannedDocs([]);
-              }}
-              className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-all"
+              onClick={() => handleWipeSessionMemory('Intake completed & memory purged.')}
+              className="px-6 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold rounded-xl text-xs border border-rose-500/30 transition-all flex items-center space-x-2"
             >
-              Start New Patient Session
+              <Trash2 className="w-4 h-4" />
+              <span>Wipe Ephemeral Kiosk Memory & Finish</span>
             </button>
           </div>
         </div>
