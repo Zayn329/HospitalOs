@@ -205,8 +205,6 @@ Repeated identical requests should not unintentionally create duplicate records.
 
 ---
 
-<<<<<<< HEAD
-=======
 # MediKiosk API Endpoints (`/api/v1/medikiosk`)
 
 * **POST `/api/v1/medikiosk/session/start`** - Initiates session, generates mock ABHA ID, returns localized consent prompt.
@@ -219,7 +217,6 @@ Repeated identical requests should not unintentionally create duplicate records.
 
 ---
 
->>>>>>> b06b2f3 (feat(medikiosk): implement Groq LLM clinical intake engine)
 # Documentation
 
 Every endpoint should include:
