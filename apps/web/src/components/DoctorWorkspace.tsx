@@ -12,6 +12,7 @@ interface Prescription {
   _id: string;
   medications: string[];
   instructions: string;
+  status?: string;
   createdAt: string;
 }
 

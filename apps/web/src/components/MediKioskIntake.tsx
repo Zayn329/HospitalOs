@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Mic, MicOff, AlertTriangle, ShieldCheck, Heart, Sparkles, Send, Volume2, Globe, Stethoscope } from 'lucide-react';
+import { Mic, MicOff, AlertTriangle, ShieldCheck, Heart, Sparkles, Send, Volume2, Globe, Stethoscope, FileText, Upload, CheckCircle2, FileCheck, Layers } from 'lucide-react';
 
 export const MediKioskIntake: React.FC = () => {
   const [language, setLanguage] = useState<'hi' | 'en'>('hi');
   const [mode, setMode] = useState<'allopathy' | 'ayush'>('allopathy');
   const [isListening, setIsListening] = useState(false);
-  const [step, setStep] = useState<'welcome' | 'consent' | 'cc' | 'socrates' | 'summary'>('welcome');
+  const [step, setStep] = useState<'welcome' | 'consent' | 'cc' | 'socrates' | 'ocr' | 'summary'>('welcome');
   const [sessionId, setSessionId] = useState<string>('');
   const [chiefComplaint, setChiefComplaint] = useState('');
   const [adaptiveQuestions, setAdaptiveQuestions] = useState<Array<{ id: string; question: string; options: string[] }>>([]);
@@ -13,6 +13,15 @@ export const MediKioskIntake: React.FC = () => {
   const [redFlags, setRedFlags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [doctorSummary, setDoctorSummary] = useState<any>(null);
+
+  // Module B: OCR State
+  const [docType, setDocType] = useState<string>('Lab Report');
+  const [docFileName, setDocFileName] = useState<string>('Lab_Report_MultiPage.pdf');
+  const [ocrInputText, setOcrText] = useState<string>(
+    'Page 1: Rx Metformin 500mg BD. Diagnosis: Type 2 Diabetes Mellitus\n--- NEXT PAGE ---\nPage 2: HbA1c 8.4% (Reference < 5.7%) - ELEVATED. Serum Creatinine 1.5 mg/dL (Reference 0.6-1.2) - HIGH'
+  );
+  const [scannedDocs, setScannedDocs] = useState<Array<any>>([]);
+  const [digitizing, setDigitizing] = useState(false);
 
   // Start Session
   const handleStartSession = async () => {
@@ -77,6 +86,31 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
+  // Module B: Run OCR Digitization Pipeline
+  const handleRunOcrDigitization = async () => {
+    if (!sessionId) return;
+    setDigitizing(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/v1/medikiosk/session/${sessionId}/ocr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: docFileName,
+          docType: docType,
+          rawText: ocrInputText
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.data?.document) {
+        setScannedDocs((prev) => [...prev, data.data.document]);
+      }
+    } catch (err) {
+      console.error('OCR Digitization failed:', err);
+    } finally {
+      setDigitizing(false);
+    }
+  };
+
   // Submit Socrates Answers & Get Summary
   const handleCompleteIntake = async () => {
     setLoading(true);
@@ -119,7 +153,7 @@ export const MediKioskIntake: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto p-6 space-y-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 shadow-2xl my-4">
+    <div className="w-full max-w-4xl mx-auto p-6 space-y-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 shadow-2xl my-4">
       {/* Kiosk Header */}
       <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-4">
         <div className="flex items-center space-x-3">
@@ -128,9 +162,9 @@ export const MediKioskIntake: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
-              MediKiosk • Module A Intake Engine
+              MediKiosk Operating Portal
             </h2>
-            <p className="text-xs text-slate-400">Conversational Voice & Touch Pre-Consultation History Engine</p>
+            <p className="text-xs text-slate-400">Module A Intake & Module B Multi-Page OCR Digitization Pipeline</p>
           </div>
         </div>
 
@@ -187,6 +221,33 @@ export const MediKioskIntake: React.FC = () => {
         </div>
       )}
 
+      {/* Step Navigation Bar */}
+      {sessionId && (
+        <div className="flex items-center justify-between bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs text-slate-400">
+          <span className="font-mono text-teal-400 font-bold px-2">Session: {sessionId}</span>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setStep('cc')}
+              className={`px-3 py-1 rounded-lg ${step === 'cc' ? 'bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30' : 'hover:text-white'}`}
+            >
+              1. Intake
+            </button>
+            <button
+              onClick={() => setStep('socrates')}
+              className={`px-3 py-1 rounded-lg ${step === 'socrates' ? 'bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30' : 'hover:text-white'}`}
+            >
+              2. Questions
+            </button>
+            <button
+              onClick={() => setStep('ocr')}
+              className={`px-3 py-1 rounded-lg ${step === 'ocr' ? 'bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30' : 'hover:text-white'}`}
+            >
+              3. Module B OCR Digitization ({scannedDocs.length})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Step 1: Welcome & Mode Selection */}
       {step === 'welcome' && (
         <div className="py-10 text-center space-y-6">
@@ -199,8 +260,8 @@ export const MediKioskIntake: React.FC = () => {
             </h3>
             <p className="text-sm text-slate-400">
               {language === 'hi'
-                ? 'डॉक्टर से परामर्श करने से पहले अपनी परेशानी बोलकर या छूकर बताएं।'
-                : 'Speak or tap answers to push a pre-consultation summary directly to your doctor.'}
+                ? 'डॉक्टर से परामर्श करने से पहले अपनी परेशानी बोलकर या छूकर बताएं और पुराने पर्चे अपलोड करें।'
+                : 'Speak or tap answers and digitize past prescriptions/lab reports with AI OCR.'}
             </p>
           </div>
           <button
@@ -340,7 +401,15 @@ export const MediKioskIntake: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center pt-2">
+            <button
+              onClick={() => setStep('ocr')}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-teal-400 border border-slate-700 font-bold rounded-xl text-xs flex items-center space-x-2"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Proceed to Module B Document OCR Upload</span>
+            </button>
+
             <button
               onClick={handleCompleteIntake}
               disabled={loading}
@@ -352,13 +421,191 @@ export const MediKioskIntake: React.FC = () => {
         </div>
       )}
 
+      {/* Step 4.5: Module B: Medical Document Digitization & OCR Pipeline */}
+      {step === 'ocr' && (
+        <div className="py-6 space-y-6 animate-in fade-in duration-200">
+          <div className="p-4 bg-teal-500/10 border border-teal-500/30 rounded-xl flex items-center justify-between">
+            <div className="flex items-center space-x-3 text-teal-300">
+              <FileText className="w-6 h-6 text-teal-400" />
+              <div>
+                <h4 className="font-bold text-base">Module B: Medical Document Digitization & OCR Pipeline</h4>
+                <p className="text-xs text-slate-400">Digitize Multi-Page Prescriptions, Lab Reports, & Discharge Summaries</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-full text-xs font-mono font-bold border border-teal-500/30">
+              Docling + Groq OCR Engine
+            </span>
+          </div>
+
+          {/* Upload & Parsing Control Card */}
+          <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Document Category:</label>
+                <select
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500"
+                >
+                  <option value="Lab Report">Lab Report (e.g. HbA1c, Metabolic Panel)</option>
+                  <option value="Prescription">Paper Prescription (Handwritten/Printed)</option>
+                  <option value="Discharge Summary">Multi-Page Hospital Discharge Summary</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Scanned Document Filename:</label>
+                <input
+                  type="text"
+                  value={docFileName}
+                  onChange={(e) => setDocFileName(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-400 font-semibold mb-1">
+                Multi-Page Scanned Content / OCR Input Stream:
+              </label>
+              <textarea
+                value={ocrInputText}
+                onChange={(e) => setOcrText(e.target.value)}
+                rows={4}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-teal-500"
+              />
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOcrText('Page 1: Prescription Metformin 500mg BD\n--- NEXT PAGE ---\nPage 2: HbA1c 8.4% High, Creatinine 1.5 High')}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-xs text-teal-400"
+                >
+                  Load Sample Multi-Page Lab (HbA1c &gt; 8.0%)
+                </button>
+              </div>
+
+              <button
+                onClick={handleRunOcrDigitization}
+                disabled={digitizing}
+                className="px-6 py-2.5 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-2 shadow-lg hover:brightness-110 disabled:opacity-50"
+              >
+                <Upload className={`w-4 h-4 ${digitizing ? 'animate-bounce' : ''}`} />
+                <span>{digitizing ? 'Extracting via Docling OCR...' : 'Digitize & Parse Document'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Digitized Output Cards */}
+          {scannedDocs.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-slate-200 flex items-center space-x-2">
+                <FileCheck className="w-4 h-4 text-teal-400" />
+                <span>Digitized Document Artifacts ({scannedDocs.length})</span>
+              </h4>
+
+              {scannedDocs.map((doc, idx) => (
+                <div key={idx} className="p-5 bg-slate-950 border border-teal-500/30 rounded-xl space-y-4">
+                  <div className="flex justify-between items-start border-b border-slate-850 pb-3">
+                    <div>
+                      <span className="text-xs font-bold text-teal-400 font-mono">{doc.id}</span>
+                      <h5 className="text-sm font-bold text-slate-100">{doc.fileName} ({doc.docType})</h5>
+                    </div>
+                    {doc.pageCount && (
+                      <span className="flex items-center space-x-1 px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-xs">
+                        <Layers className="w-3.5 h-3.5 text-teal-400" />
+                        <span>{doc.pageCount} Pages</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Abnormal Lab Flag Alert Box */}
+                  {doc.abnormalLabFlags && doc.abnormalLabFlags.length > 0 && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg space-y-1">
+                      <span className="text-xs font-bold text-rose-400 flex items-center space-x-1">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>ABNORMAL LAB FLAGGED IN TIMELINE:</span>
+                      </span>
+                      <ul className="list-disc list-inside text-xs text-rose-300">
+                        {doc.abnormalLabFlags.map((flag: string, fIdx: number) => (
+                          <li key={fIdx}>{flag}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Extracted Entities Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                      <span className="text-slate-400 font-semibold block mb-1">Extracted Diagnosis:</span>
+                      <span className="px-2 py-1 bg-teal-500/20 text-teal-300 rounded font-medium border border-teal-500/30 inline-block">
+                        {doc.extractedDiagnosis || 'None identified'}
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                      <span className="text-slate-400 font-semibold block mb-1">Active Medications:</span>
+                      {doc.extractedMedications && doc.extractedMedications.length > 0 ? (
+                        <ul className="space-y-1">
+                          {doc.extractedMedications.map((m: any, mIdx: number) => (
+                            <li key={mIdx} className="text-slate-200 font-mono">
+                              • {m.name} ({m.dosage})
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-slate-500">None extracted</span>
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                      <span className="text-slate-400 font-semibold block mb-1">Extracted Lab Values:</span>
+                      {doc.extractedLabValues && doc.extractedLabValues.length > 0 ? (
+                        <ul className="space-y-1">
+                          {doc.extractedLabValues.map((l: any, lIdx: number) => (
+                            <li key={lIdx} className={l.isAbnormal ? 'text-rose-400 font-bold' : 'text-slate-300'}>
+                              • {l.test}: {l.result} {l.unit} ({l.referenceRange})
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-slate-500">None extracted</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-between items-center pt-2">
+            <button
+              onClick={() => setStep('socrates')}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs"
+            >
+              Back to Questions
+            </button>
+
+            <button
+              onClick={handleCompleteIntake}
+              disabled={loading}
+              className="px-6 py-2.5 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl text-sm shadow-lg hover:brightness-110"
+            >
+              {loading ? 'Synthesizing Draft Summary...' : 'Submit All & Generate Doctor Summary'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Step 5: Draft Summary View */}
       {step === 'summary' && doctorSummary && (
         <div className="py-6 space-y-6">
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-emerald-300">
             <div className="flex items-center space-x-2 text-sm">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <span>Intake Complete! Pre-consultation summary sent to Doctor Workspace.</span>
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <span>Intake & Module B Digitization Complete! Pre-consultation summary sent to Doctor Workspace.</span>
             </div>
           </div>
 
@@ -380,6 +627,11 @@ export const MediKioskIntake: React.FC = () => {
             </div>
 
             <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800 space-y-1 text-xs">
+              <span className="text-teal-400 font-semibold block">Prior Investigations Timeline (Digitized Docs):</span>
+              <p className="text-slate-300 font-mono">{doctorSummary.structuredSOAP.priorInvestigationsTimeline}</p>
+            </div>
+
+            <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800 space-y-1 text-xs">
               <span className="text-teal-400 font-semibold block">Patient Local Language Confirmation:</span>
               <p className="text-slate-300 italic">{doctorSummary.bilingualAudioConfirmation.patientAudioText}</p>
             </div>
@@ -393,6 +645,7 @@ export const MediKioskIntake: React.FC = () => {
                 setSocratesAnswers({});
                 setDoctorSummary(null);
                 setRedFlags([]);
+                setScannedDocs([]);
               }}
               className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-all"
             >
