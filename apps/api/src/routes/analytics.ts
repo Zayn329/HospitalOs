@@ -16,7 +16,7 @@ router.get('/analytics/dashboard', async (req: Request, res: Response, next: Nex
 
     const bills = await Bill.find();
     const totalRevenue = bills.reduce((acc, b) => acc + (b.totalAmount || 0), 0);
-    const paidRevenue = bills.filter(b => b.status === 'paid').reduce((acc, b) => acc + (b.totalAmount || 0), 0);
+    const paidRevenue = bills.filter(b => b.paymentStatus === 'paid').reduce((acc, b) => acc + (b.totalAmount || 0), 0);
 
     return res.status(200).json({
       success: true,
@@ -28,7 +28,7 @@ router.get('/analytics/dashboard', async (req: Request, res: Response, next: Nex
         financials: {
           totalRevenue,
           paidRevenue,
-          unpaidCount: bills.filter(b => b.status === 'unpaid').length
+          unpaidCount: bills.filter(b => b.paymentStatus === 'pending').length
         }
       }
     });
