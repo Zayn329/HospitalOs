@@ -599,41 +599,79 @@ export const MediKioskIntake: React.FC = () => {
         </div>
       )}
 
-      {/* Step 5: Draft Summary View */}
+      {/* Step 5: Module C - Bilingual Draft Summary View */}
       {step === 'summary' && doctorSummary && (
-        <div className="py-6 space-y-6">
+        <div className="py-6 space-y-6 animate-in fade-in duration-200">
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-emerald-300">
             <div className="flex items-center space-x-2 text-sm">
               <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              <span>Intake & Module B Digitization Complete! Pre-consultation summary sent to Doctor Workspace.</span>
+              <span>Module C Complete: Bilingual Pre-Consultation Summary Draft Synchronized with Doctor Screen!</span>
             </div>
           </div>
 
-          <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-4">
-            <h4 className="text-sm uppercase tracking-wider text-teal-400 font-bold flex items-center space-x-2">
-              <Heart className="w-4 h-4" />
-              <span>Generated Pre-Consultation SOAP Draft</span>
+          {/* Module C Dual-View Box */}
+          <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-5">
+            <h4 className="text-sm uppercase tracking-wider text-teal-400 font-bold flex items-center justify-between">
+              <span className="flex items-center space-x-2">
+                <Heart className="w-4 h-4 text-teal-400" />
+                <span>Structured SOAP Draft Summary (Chief Complaint → HPI → Past History → ROS → Prior Investigations)</span>
+              </span>
+              <span className="text-xs text-slate-400 font-mono">Bilingual Dual-View Active</span>
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {/* 5-Stage Structured SOAP Flow Grid */}
+            <div className="space-y-3 text-xs">
               <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-                <span className="text-slate-400 font-semibold block">Chief Complaint:</span>
+                <span className="text-teal-400 font-bold block">1. Chief Complaint:</span>
                 <p className="text-slate-200">{doctorSummary.structuredSOAP.chiefComplaint}</p>
               </div>
+
               <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-                <span className="text-slate-400 font-semibold block">History of Present Illness (HPI):</span>
+                <span className="text-teal-400 font-bold block">2. History of Present Illness (HPI):</span>
                 <p className="text-slate-200">{doctorSummary.structuredSOAP.historyOfPresentIllness}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
+                  <span className="text-teal-400 font-bold block">3. Past Medical History & Allergies:</span>
+                  <p className="text-slate-200">{doctorSummary.structuredSOAP.pastMedicalHistory || 'None reported'}</p>
+                  <p className="text-rose-400 font-medium">Allergies: {doctorSummary.structuredSOAP.allergies || 'No known drug allergies'}</p>
+                </div>
+
+                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
+                  <span className="text-teal-400 font-bold block">4. Review of Systems (ROS):</span>
+                  <p className="text-slate-200">{doctorSummary.structuredSOAP.reviewOfSystems || 'Negative except CC'}</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
+                <span className="text-teal-400 font-bold block">5. Prior Investigations Timeline (Scanned Documents):</span>
+                <p className="text-slate-300 font-mono">{doctorSummary.structuredSOAP.priorInvestigations || doctorSummary.structuredSOAP.priorInvestigationsTimeline || 'No prior documents attached'}</p>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800 space-y-1 text-xs">
-              <span className="text-teal-400 font-semibold block">Prior Investigations Timeline (Digitized Docs):</span>
-              <p className="text-slate-300 font-mono">{doctorSummary.structuredSOAP.priorInvestigationsTimeline}</p>
-            </div>
-
-            <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800 space-y-1 text-xs">
-              <span className="text-teal-400 font-semibold block">Patient Local Language Confirmation:</span>
-              <p className="text-slate-300 italic">{doctorSummary.bilingualAudioConfirmation.patientAudioText}</p>
+            {/* Bilingual Audio Confirmation Box */}
+            <div className="p-4 bg-teal-500/10 border border-teal-500/30 rounded-xl space-y-3 text-xs">
+              <div className="flex justify-between items-center text-teal-300 font-bold">
+                <span className="flex items-center space-x-2">
+                  <Volume2 className="w-4 h-4 text-teal-400" />
+                  <span>Bilingual Spoken Audio Confirmation (Localized Patient Voice Text):</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => alert(`Playing spoken audio: "${doctorSummary.bilingualAudioConfirmation.patientAudioText}"`)}
+                  className="px-3 py-1 bg-teal-500 text-slate-950 rounded-lg text-xs font-bold hover:bg-teal-400 flex items-center space-x-1"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>Play Spoken Audio</span>
+                </button>
+              </div>
+              <p className="text-slate-200 italic p-3 bg-slate-900/90 rounded-lg border border-slate-800">
+                "{doctorSummary.bilingualAudioConfirmation.patientAudioText}"
+              </p>
+              <div className="text-slate-400 text-[11px] pt-1">
+                <span className="font-semibold text-slate-300">Doctor English Executive Stream:</span> {doctorSummary.bilingualAudioConfirmation.doctorEnglishSummary}
+              </div>
             </div>
           </div>
 

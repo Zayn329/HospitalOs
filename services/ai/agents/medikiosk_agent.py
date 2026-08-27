@@ -107,29 +107,36 @@ def evaluate_red_flags(chief_complaint: str, socrates_answers: Dict[str, str] = 
 
 def generate_bilingual_soap(history_data: Dict[str, Any], language: str = "hi") -> Dict[str, Any]:
     """
-    Synthesizes a structured clinical SOAP summary for doctors and bilingual text for patient audio playback using Groq LLM.
+    Module C: Bilingual Summary Generator.
+    Synthesizes structured SOAP output (Chief Complaint -> HPI -> Past History -> ROS -> Prior Investigations)
+    and dual-view bilingual audio confirmations for patients (Hindi/Regional) & doctors (English).
     """
     system_prompt = (
-        "You are an AI Clinical Scribe.\n"
-        "Convert the patient's intake history into a structured SOAP summary for the physician (in English) "
-        "and a polite confirmation message for the patient (in their local language).\n"
+        "You are an expert AI Clinical Scribe & Medical Translator.\n"
+        "Analyze the patient's intake history (including chief complaint, SOCRATES/AYUSH responses, allergies, and scanned OCR documents).\n"
+        "Generate a structured SOAP summary following the exact flow:\n"
+        "Chief Complaint -> HPI -> Past History -> ROS -> Prior Investigations\n"
+        "Also generate localized audio confirmation text for the patient in their preferred language (e.g. Hindi, Tamil, Telugu, Marathi, Bengali, Kannada, English) "
+        "and a clean English summary for the doctor screen.\n"
         "Respond ONLY in valid JSON matching this schema:\n"
         "{\n"
         '  "structuredSOAP": {\n'
-        '    "chiefComplaint": "...",\n'
-        '    "historyOfPresentIllness": "...",\n'
-        '    "pastMedicalHistory": "...",\n'
-        '    "allergies": "...",\n'
-        '    "reviewOfSystems": "..."\n'
+        '    "chiefComplaint": "Primary complaint text",\n'
+        '    "historyOfPresentIllness": "Detailed HPI with site, onset, character, radiation, severity",\n'
+        '    "pastMedicalHistory": "Chronic conditions / past surgeries / allergies",\n'
+        '    "allergies": "Known drug/food allergies",\n'
+        '    "reviewOfSystems": "ROS findings",\n'
+        '    "priorInvestigations": "Timeline summary of prior scanned prescriptions & lab reports (e.g., HbA1c 8.4%)"\n'
         '  },\n'
         '  "bilingualAudioConfirmation": {\n'
-        '    "patientAudioText": "...",\n'
-        '    "doctorEnglishSummary": "..."\n'
+        '    "patientAudioText": "Spoken confirmation text in patient preferred language",\n'
+        '    "doctorEnglishSummary": "Concise English executive summary for doctor screen",\n'
+        '    "language": "Language code"\n'
         '  }\n'
         "}"
     )
 
-    user_prompt = f"Patient Intake Data: {json.dumps(history_data)}\nPatient Preferred Language: {language}"
+    user_prompt = f"Patient Intake Data: {json.dumps(history_data)}\nPatient Preferred Language: '{language}'"
 
     try:
         raw_response = call_llm(system_prompt, user_prompt, temperature=0.1)
@@ -142,17 +149,32 @@ def generate_bilingual_soap(history_data: Dict[str, Any], language: str = "hi") 
     except Exception as e:
         logger.warning(f"Groq LLM SOAP generation failed ({e}). Returning structured template.")
         cc = history_data.get("chiefComplaint", "Not specified")
+        socrates = history_data.get("socrates", {})
+        scanned = history_data.get("scannedDocuments", [])
+
+        docs_summary = "; ".join([f"[{d.get('docType','Doc')}] {d.get('extractedDiagnosis','')} (Meds: {d.get('extractedMedications','')})" for d in scanned]) if scanned else "No prior documents attached"
+
+        patient_msg_map = {
+            "hi": f"आपका स्वास्थ्य विवरण दर्ज कर लिया गया है। मुख्य शिकायत: {cc}। डॉक्टर के पास जानकारी भेज दी गई है।",
+            "ta": f"உங்கள் மருத்துவ விவரங்கள் பதிவு செய்யப்பட்டுள்ளன: {cc}.",
+            "te": f"மீ వైద్య వివరాలు నమోదు చేయబడ్డాయి: {cc}.",
+            "mr": f"तुमची वैद्यकीय माहिती नोंदवली गेली आहे: {cc}.",
+            "en": f"Your medical intake has been recorded and submitted to the doctor screen: {cc}."
+        }
+
         return {
             "structuredSOAP": {
                 "chiefComplaint": cc,
-                "historyOfPresentIllness": f"Patient reports {cc}. Socrates details: {json.dumps(history_data.get('socrates', {}))}",
+                "historyOfPresentIllness": f"Patient presents with {cc}. Socrates details: {json.dumps(socrates)}",
                 "pastMedicalHistory": "None reported",
-                "allergies": "No known drug allergies",
-                "reviewOfSystems": "Systemic review pending physician examination"
+                "allergies": ", ".join(history_data.get("allergies", [])) or "No known drug allergies (NKDA)",
+                "reviewOfSystems": "Systemic review pending physical examination",
+                "priorInvestigations": docs_summary
             },
             "bilingualAudioConfirmation": {
-                "patientAudioText": "आपका विवरण दर्ज कर लिया गया है। डॉक्टर आपके सारांश की समीक्षा कर रहे हैं।" if language == "hi" else "Your history is recorded and sent to the doctor.",
-                "doctorEnglishSummary": f"Patient presented with {cc}."
+                "patientAudioText": patient_msg_map.get(language, patient_msg_map["en"]),
+                "doctorEnglishSummary": f"Patient presented with {cc}. SOCRATES: {json.dumps(socrates)}. Scanned docs digitized: {len(scanned)} files.",
+                "language": language
             }
         }
 

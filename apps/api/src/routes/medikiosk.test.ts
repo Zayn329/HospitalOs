@@ -82,7 +82,7 @@ test('MediKiosk AI Clinical Intake Engine API Suite', async (t) => {
     assert.ok(res.body.data.document.abnormalLabFlags.length > 0);
   });
 
-  await t.test('POST /api/v1/medikiosk/session/:id/summary - should generate bilingual SOAP summary for doctor screen', async () => {
+  await t.test('POST /api/v1/medikiosk/session/:id/summary - Module C: Bilingual Summary Generator (SOAP & Dual-View)', async () => {
     const res = await request(app)
       .post(`/api/v1/medikiosk/session/${sessionId}/summary`)
       .send({});
@@ -90,7 +90,14 @@ test('MediKiosk AI Clinical Intake Engine API Suite', async (t) => {
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.success, true);
     assert.ok(res.body.data.structuredSOAP.chiefComplaint.includes('chest pain'));
+    assert.ok(res.body.data.structuredSOAP.historyOfPresentIllness.length > 0);
+    assert.ok(res.body.data.structuredSOAP.pastMedicalHistory.length > 0);
+    assert.ok(res.body.data.structuredSOAP.reviewOfSystems.length > 0);
+    assert.ok(
+      (res.body.data.structuredSOAP.priorInvestigationsTimeline || res.body.data.structuredSOAP.priorInvestigations).length > 0
+    );
     assert.ok(res.body.data.bilingualAudioConfirmation.patientAudioText.length > 0);
+    assert.ok(res.body.data.bilingualAudioConfirmation.doctorEnglishSummary.length > 0);
   });
 
   await t.test('DELETE /api/v1/medikiosk/session/:id - should wipe kiosk session memory securely', async () => {

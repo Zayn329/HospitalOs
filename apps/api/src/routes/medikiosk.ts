@@ -372,13 +372,16 @@ router.post('/session/:id/summary', async (req: Request, res: Response, next: Ne
       }
     };
 
-    // Attempt GenAI FastAPI Microservice Call
+    // Attempt GenAI FastAPI Microservice Call - Module C: Bilingual Summary Generator
     try {
       const response = await fetch('http://localhost:8000/api/v1/agent/medikiosk/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          historyData: session.history,
+          historyData: {
+            ...session.history,
+            scannedDocuments: session.scannedDocuments
+          },
           language: session.language
         })
       });
