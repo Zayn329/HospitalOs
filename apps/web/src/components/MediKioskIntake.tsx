@@ -119,7 +119,7 @@ export const MediKioskIntake: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 shadow-2xl">
+    <div className="w-full max-w-3xl mx-auto p-6 space-y-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 shadow-2xl my-4">
       {/* Kiosk Header */}
       <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-4">
         <div className="flex items-center space-x-3">

@@ -168,8 +168,37 @@ router.post('/session/:id/questions', async (req: Request, res: Response, next: 
     }
 
     session.history.chiefComplaint = chiefComplaint;
-    const questions = getAdaptiveQuestions(chiefComplaint, session.mode);
-    const redFlags = detectRedFlags(chiefComplaint);
+
+    // Call Python FastAPI AI Agent service
+    let questions = getAdaptiveQuestions(chiefComplaint, session.mode);
+    let redFlags = detectRedFlags(chiefComplaint);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/agent/medikiosk/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chiefComplaint,
+          mode: session.mode,
+          language: session.language
+        })
+      });
+
+      if (response.ok) {
+        const aiResult = await response.json();
+        if (aiResult.success && aiResult.data) {
+          if (aiResult.data.adaptiveQuestions?.length > 0) {
+            questions = aiResult.data.adaptiveQuestions;
+          }
+          if (aiResult.data.redFlagsDetected?.length > 0) {
+            redFlags = Array.from(new Set([...redFlags, ...aiResult.data.redFlagsDetected]));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('FastAPI AI Agent offline or unavailable. Using deterministic fallback.', e);
+    }
+
     session.redFlags = redFlags;
     sessions.set(id, session);
 
@@ -289,7 +318,7 @@ router.post('/session/:id/summary', async (req: Request, res: Response, next: Ne
       .map((d) => `[${d.docType}] ${d.extractedDiagnosis || ''} (Meds: ${d.extractedMedications?.map(m=>m.name).join(', ')})`)
       .join('; ');
 
-    const doctorSummary = {
+    let doctorSummary = {
       patientAbhaId: session.abhaId,
       intakeMode: session.mode,
       language: session.language,
@@ -309,6 +338,33 @@ router.post('/session/:id/summary', async (req: Request, res: Response, next: Ne
         doctorEnglishSummary: `Patient presented with ${chiefComplaint}. SOCRATES: ${socratesText}. Scanned docs: ${session.scannedDocuments.length} files digitized.`
       }
     };
+
+    // Attempt GenAI FastAPI Microservice Call
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/agent/medikiosk/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          historyData: session.history,
+          language: session.language
+        })
+      });
+
+      if (response.ok) {
+        const aiResult = await response.json();
+        if (aiResult.success && aiResult.data) {
+          doctorSummary.structuredSOAP = {
+            ...doctorSummary.structuredSOAP,
+            ...aiResult.data.structuredSOAP
+          };
+          if (aiResult.data.bilingualAudioConfirmation) {
+            doctorSummary.bilingualAudioConfirmation = aiResult.data.bilingualAudioConfirmation;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('FastAPI GenAI Summary Agent unavailable. Using static template.', e);
+    }
 
     session.status = 'completed';
     sessions.set(id, session);

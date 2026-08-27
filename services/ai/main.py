@@ -12,6 +12,7 @@ from agents.diagnostics import router as diagnostics_router
 from agents.medication_safety import router as medication_safety_router
 from agents.billing import router as billing_router
 from agents.patient_care import router as patient_care_router
+from agents.medikiosk import router as medikiosk_router
 
 app = FastAPI(title="HospitalOS AI Service", version="1.0.0")
 
@@ -30,6 +31,7 @@ app.include_router(diagnostics_router, prefix="/api/v1/agent")
 app.include_router(medication_safety_router, prefix="/api/v1/agent")
 app.include_router(billing_router, prefix="/api/v1/agent")
 app.include_router(patient_care_router, prefix="/api/v1/agent")
+app.include_router(medikiosk_router, prefix="/api/v1/agent")
 
 @app.get("/api/v1/health")
 def health_check():
