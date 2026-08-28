@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, AlertTriangle, ShieldCheck, Heart, Sparkles, Send, Volume2, Globe, Stethoscope, FileText, Upload, CheckCircle2, FileCheck, Layers, Key, Clock, Trash2 } from 'lucide-react';
+import {
+  Mic, MicOff, AlertTriangle, ShieldCheck, Heart, Sparkles, Send, Volume2, Globe, Stethoscope, FileText, Upload, CheckCircle2, FileCheck, Clock, Trash2, ArrowRight, Shield, ChevronRight
+} from 'lucide-react';
 
 export const MediKioskIntake: React.FC = () => {
   const [language, setLanguage] = useState<'hi' | 'en'>('hi');
@@ -55,12 +57,10 @@ export const MediKioskIntake: React.FC = () => {
     return () => clearInterval(timer);
   }, [sessionId]);
 
-  // Reset timer on user activity
   const resetActivityTimer = () => {
     setInactivityTimer(60);
   };
 
-  // Start Session with Module D ABHA / Aadhaar Auth
   const handleStartSession = async () => {
     setLoading(true);
     setWipeNotice(null);
@@ -89,12 +89,10 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
-  // Send ABDM Sandbox OTP Simulation
   const handleSendAadhaarOtp = () => {
     setOtpSent(true);
   };
 
-  // Give Granular DPDP Consent
   const handleGiveConsent = async () => {
     if (!sessionId) return;
     setLoading(true);
@@ -120,7 +118,6 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
-  // Module D: Ephemeral Session Wipe API Call
   const handleWipeSessionMemory = async (_reason = 'Manual patient/staff session wipe requested.') => {
     if (!sessionId) return;
     try {
@@ -132,7 +129,6 @@ export const MediKioskIntake: React.FC = () => {
     } catch (err) {
       setWipeNotice('Session memory wiped locally.');
     } finally {
-      // Reset all kiosk state
       setSessionId('');
       setStep('welcome');
       setChiefComplaint('');
@@ -146,7 +142,6 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
-  // Submit Chief Complaint & Get Adaptive Questions
   const handleSubmitChiefComplaint = async () => {
     if (!chiefComplaint.trim()) return;
     resetActivityTimer();
@@ -170,7 +165,6 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
-  // Module B: Run OCR Digitization Pipeline
   const handleRunOcrDigitization = async () => {
     if (!sessionId) return;
     resetActivityTimer();
@@ -196,7 +190,6 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
-  // Submit Socrates Answers & Get Summary
   const handleCompleteIntake = async () => {
     resetActivityTimer();
     setLoading(true);
@@ -223,7 +216,6 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
-  // Toggle Voice Input Mock
   const toggleVoiceInput = () => {
     resetActivityTimer();
     setIsListening(!isListening);
@@ -237,678 +229,683 @@ export const MediKioskIntake: React.FC = () => {
     }
   };
 
+  // Helper step index for progress bar
+  const getStepIndex = () => {
+    switch (step) {
+      case 'welcome': return 1;
+      case 'consent': return 2;
+      case 'cc': return 3;
+      case 'socrates': return 4;
+      case 'ocr': return 5;
+      case 'summary': return 6;
+      default: return 1;
+    }
+  };
+
   return (
     <div
       onClick={resetActivityTimer}
-      className="w-full max-w-4xl mx-auto p-6 space-y-6 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 shadow-2xl my-4 relative"
+      className="w-full max-w-5xl mx-auto space-y-6 text-slate-100 my-2 relative font-sans"
     >
-      {/* Kiosk Header */}
-      <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400">
-            <Stethoscope className="w-7 h-7" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
-              MediKiosk Operating Portal
-            </h2>
-            <p className="text-xs text-slate-400">Modules A, B, C, & D (ABDM Auth, DPDP Compliance, Ephemeral Wipe)</p>
-          </div>
-        </div>
+      {/* Visual Accent Glow */}
+      <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-full max-w-2xl h-32 bg-gradient-to-r from-teal-500/20 via-cyan-500/20 to-indigo-500/20 blur-3xl rounded-full pointer-events-none"></div>
 
-        {/* Control Toggles */}
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
-            <button
-              onClick={() => setLanguage('hi')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center space-x-1 ${
-                language === 'hi' ? 'bg-teal-500 text-slate-950 shadow-md font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>हिंदी</span>
-            </button>
-            <button
-              onClick={() => setLanguage('en')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center space-x-1 ${
-                language === 'en' ? 'bg-teal-500 text-slate-950 shadow-md font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>English</span>
-            </button>
-          </div>
-
-          <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
-            <button
-              onClick={() => setMode('allopathy')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                mode === 'allopathy' ? 'bg-cyan-500 text-slate-950 shadow-md font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Modern
-            </button>
-            <button
-              onClick={() => setMode('ayush')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                mode === 'ayush' ? 'bg-emerald-500 text-slate-950 shadow-md font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              AYUSH
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Module D: Ephemeral Session Wipe Notification */}
-      {wipeNotice && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center space-x-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          <span>{wipeNotice}</span>
-        </div>
-      )}
-
-      {/* Red Flags Alert Header */}
-      {redFlags.length > 0 && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center space-x-3 text-rose-300 animate-pulse">
-          <AlertTriangle className="w-6 h-6 flex-shrink-0 text-rose-400" />
-          <div className="text-sm">
-            <span className="font-bold">TRIAGE ALERT DETECTED:</span> {redFlags.join(' | ')}
-          </div>
-        </div>
-      )}
-
-      {/* Step Navigation Bar & Module D Inactivity Timer */}
-      {sessionId && (
-        <div className="flex flex-wrap items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs text-slate-400 gap-2">
-          <div className="flex items-center space-x-2">
-            <span className="font-mono text-teal-400 font-bold px-2">Session: {sessionId}</span>
-            {abhaDetails && (
-              <span className="px-2 py-0.5 bg-teal-500/20 text-teal-300 rounded font-mono font-bold border border-teal-500/30">
-                ABHA: {abhaDetails.abhaId} ({abhaDetails.verificationStatus})
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <span className="flex items-center space-x-1 text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 font-mono">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>Auto-Wipe: {inactivityTimer}s</span>
-            </span>
-
-            <button
-              onClick={() => handleWipeSessionMemory('User manual memory wipe')}
-              className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg flex items-center space-x-1 font-bold transition-all"
-              title="Immediately Wipe Kiosk Session Data"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Wipe Memory</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 1: Welcome, Mode Selection & Module D ABHA Sandbox Auth */}
-      {step === 'welcome' && (
-        <div className="py-6 space-y-6">
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-teal-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg shadow-teal-500/20">
-              <Sparkles className="w-8 h-8 text-slate-950" />
+      {/* Main Kiosk Container Card */}
+      <div className="relative bg-[#090d1f]/90 border border-slate-800/90 rounded-3xl p-6 sm:p-8 backdrop-blur-2xl shadow-2xl space-y-8">
+        {/* Header Bar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-slate-800/80 gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-tr from-teal-500 to-cyan-400 rounded-2xl shadow-lg shadow-teal-500/20 text-slate-950 font-bold">
+              <Stethoscope className="w-7 h-7" />
             </div>
-            <h3 className="text-xl font-bold">
-              {language === 'hi' ? 'नमस्कार! कृपया अपनी स्वास्थ्य जानकारी दर्ज करें' : 'Welcome! Self-record your history'}
-            </h3>
-            <p className="text-sm text-slate-400 max-w-md mx-auto">
-              {language === 'hi'
-                ? 'ABDM ABHA आईडी लिंक करें, सहमति दें और अपनी स्वास्थ्य रिपोर्ट डिजिटाइज करें।'
-                : 'Link your ABDM ABHA ID, provide DPDP consent, and digitize medical records.'}
-            </p>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-2xl font-black bg-gradient-to-r from-teal-300 via-cyan-200 to-white bg-clip-text text-transparent">
+                  Aethera Clinical Intake
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  Kiosk Engine
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Self-service conversational intake, document OCR & instant doctor screen routing
+              </p>
+            </div>
           </div>
 
-          {/* Module D: ABDM / Aadhaar Sandbox Authentication Card */}
-          <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-4 max-w-lg mx-auto">
-            <div className="flex items-center space-x-2 text-teal-400 font-bold text-sm">
-              <Key className="w-4 h-4" />
-              <span>ABDM ABHA Sandbox Identity Linkage</span>
+          {/* Quick Language & Medical Mode Selectors */}
+          <div className="flex items-center space-x-3 self-stretch sm:self-auto justify-end">
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setLanguage('hi')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center space-x-1.5 ${
+                  language === 'hi' ? 'bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>हिंदी</span>
+              </button>
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center space-x-1.5 ${
+                  language === 'en' ? 'bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>English</span>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 text-xs">
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">ABHA ID Number (14 Digits):</label>
-                <input
-                  type="text"
-                  value={inputAbhaId}
-                  onChange={(e) => setInputAbhaId(e.target.value)}
-                  placeholder="e.g. 91-2345-6789-0123"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setMode('allopathy')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  mode === 'allopathy' ? 'bg-gradient-to-r from-cyan-400 to-indigo-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Modern
+              </button>
+              <button
+                onClick={() => setMode('ayush')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  mode === 'ayush' ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                AYUSH
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Multi-Step Workflow Visual Progress Bar */}
+        <div className="grid grid-cols-5 gap-2 text-center text-xs font-medium">
+          {[
+            { id: 1, name: language === 'hi' ? '1. ABHA पहचान' : '1. Identify', key: 'welcome' },
+            { id: 2, name: language === 'hi' ? '2. DPDP सहमति' : '2. Consent', key: 'consent' },
+            { id: 3, name: language === 'hi' ? '3. लक्षण बातचीत' : '3. Conversational', key: 'cc' },
+            { id: 4, name: language === 'hi' ? '4. डॉक्टर प्रश्न' : '4. History', key: 'socrates' },
+            { id: 5, name: language === 'hi' ? '5. पर्चा अपलोड' : '5. Document OCR', key: 'ocr' }
+          ].map((item) => {
+            const currentIdx = getStepIndex();
+            const isActive = item.id === currentIdx || (currentIdx === 6 && item.id === 5);
+            const isCompleted = item.id < currentIdx;
+            return (
+              <div key={item.id} className="space-y-1.5">
+                <div
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-teal-400 to-cyan-400 shadow-md shadow-teal-500/30'
+                      : isCompleted
+                      ? 'bg-teal-500/40'
+                      : 'bg-slate-800'
+                  }`}
                 />
+                <span className={`block truncate text-[11px] font-semibold ${isActive ? 'text-teal-300 font-bold' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>
+                  {item.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Ephemeral Wipe Notice */}
+        {wipeNotice && (
+          <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs flex items-center space-x-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+            <span className="font-medium">{wipeNotice}</span>
+          </div>
+        )}
+
+        {/* Red Flags Triage Banner */}
+        {redFlags.length > 0 && (
+          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center space-x-3 text-rose-300 animate-pulse shadow-lg shadow-rose-500/5">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 text-rose-400" />
+            <div className="text-sm">
+              <span className="font-extrabold uppercase tracking-wide">PRIORITY EMERGENCY ALERT:</span> {redFlags.join(' | ')}
+            </div>
+          </div>
+        )}
+
+        {/* Active Session Status & Ephemeral Reset */}
+        {sessionId && (
+          <div className="flex flex-wrap items-center justify-between bg-slate-950/80 p-3 rounded-2xl border border-slate-850 text-xs text-slate-400 gap-2">
+            <div className="flex items-center space-x-2">
+              <span className="font-mono text-teal-300 font-bold px-2 py-0.5 bg-slate-900 rounded-lg border border-slate-800">
+                Session: {sessionId}
+              </span>
+              {abhaDetails && (
+                <span className="px-2.5 py-0.5 bg-teal-500/20 text-teal-300 rounded-lg font-mono font-bold border border-teal-500/30">
+                  ABHA: {abhaDetails.abhaId} ({abhaDetails.verificationStatus})
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <span className="flex items-center space-x-1.5 text-slate-400 bg-slate-900 px-3 py-1 rounded-xl border border-slate-800 font-mono">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Auto-Wipe: {inactivityTimer}s</span>
+              </span>
+
+              <button
+                onClick={() => handleWipeSessionMemory('User manual memory wipe')}
+                className="px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl flex items-center space-x-1.5 font-bold transition-all"
+                title="Immediately Wipe Kiosk Session Data"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Wipe Session</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: WELCOME & ABDM ABHA LOGIN */}
+        {step === 'welcome' && (
+          <div className="py-4 space-y-8 animate-in fade-in duration-300">
+            <div className="text-center space-y-3">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-teal-400 via-cyan-400 to-indigo-500 rounded-3xl flex items-center justify-center shadow-xl shadow-teal-500/20 p-4">
+                <Sparkles className="w-10 h-10 text-slate-950" />
+              </div>
+              <h3 className="text-2xl font-black tracking-tight text-white">
+                {language === 'hi' ? 'नमस्कार! बिना कतार में लगे अपनी बीमारी रिकॉर्ड करें' : 'Self-Record Clinical History & Scan Docs'}
+              </h3>
+              <p className="text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
+                {language === 'hi'
+                  ? 'ABDM ABHA आईडी दर्ज करें, अपनी पुरानी पर्ची फोटो खीचें और डॉक्टर के पास सीधा समरी भेजें।'
+                  : 'Link your ABHA ID, speak your symptoms, scan paper lab reports & push summary directly to the doctor.'}
+              </p>
+            </div>
+
+            {/* ABHA / Aadhaar Verification Card */}
+            <div className="p-6 bg-slate-950/90 border border-slate-800 rounded-3xl space-y-5 max-w-xl mx-auto shadow-inner">
+              <div className="flex items-center space-x-2 text-teal-300 font-bold text-sm">
+                <Shield className="w-5 h-5 text-teal-400" />
+                <span>Module D: ABDM ABHA / Aadhaar Identity Linkage</span>
               </div>
 
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Aadhaar Number (Sandbox Verification):</label>
-                <div className="flex gap-2">
+              <div className="grid grid-cols-1 gap-4 text-xs">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1.5">ABHA ID (14 Digits):</label>
                   <input
                     type="text"
-                    value={inputAadhaar}
-                    onChange={(e) => setInputAadhaar(e.target.value)}
-                    placeholder="12-digit Aadhaar"
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                    value={inputAbhaId}
+                    onChange={(e) => setInputAbhaId(e.target.value)}
+                    placeholder="e.g. 91-2345-6789-0123"
+                    className="w-full bg-slate-900/80 border border-slate-800 focus:border-teal-400 rounded-xl p-3 text-slate-200 focus:outline-none font-mono text-sm transition-all"
                   />
-                  <button
-                    type="button"
-                    onClick={handleSendAadhaarOtp}
-                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold border border-slate-700 rounded-lg"
-                  >
-                    Send OTP
-                  </button>
                 </div>
-              </div>
 
-              {otpSent && (
-                <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg space-y-2">
-                  <span className="text-teal-300 font-bold block">Aadhaar Sandbox OTP Sent:</span>
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1.5">Aadhaar Number (Sandbox Verification):</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      value={aadhaarOtp}
-                      onChange={(e) => setAadhaarOtp(e.target.value)}
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-center tracking-widest"
+                      value={inputAadhaar}
+                      onChange={(e) => setInputAadhaar(e.target.value)}
+                      placeholder="12-digit Aadhaar"
+                      className="flex-1 bg-slate-900/80 border border-slate-800 focus:border-teal-400 rounded-xl p-3 text-slate-200 focus:outline-none font-mono text-sm transition-all"
                     />
-                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded flex items-center">
-                      ✓ OTP Verified
-                    </span>
+                    <button
+                      type="button"
+                      onClick={handleSendAadhaarOtp}
+                      className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-teal-300 font-bold border border-slate-700 rounded-xl text-xs transition-colors"
+                    >
+                      Send OTP
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          <div className="text-center">
-            <button
-              onClick={handleStartSession}
-              disabled={loading}
-              className="px-8 py-3 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl shadow-lg hover:brightness-110 transition-all text-sm"
-            >
-              {loading ? 'Initializing ABDM Session...' : language === 'hi' ? 'शुरू करें (Start Intake)' : 'Start Verified Kiosk Session'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 2: Module D - Granular DPDP Consent Prompt */}
-      {step === 'consent' && (
-        <div className="py-6 space-y-6">
-          <div className="p-6 bg-slate-800/60 border border-slate-700/60 rounded-xl space-y-5">
-            <div className="flex items-center justify-between text-teal-400">
-              <div className="flex items-center space-x-3">
-                <ShieldCheck className="w-6 h-6" />
-                <h4 className="font-bold text-lg">DPDP Act 2023 Granular Data Consent</h4>
-              </div>
-              <span className="px-2.5 py-1 bg-teal-500/20 text-teal-300 text-xs font-mono font-bold rounded border border-teal-500/30">
-                DPDP-2023-V1
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Under the Digital Personal Data Protection (DPDP) Act 2023 & ABDM guidelines, select granular data permissions before commencing your intake.
-            </p>
-
-            {/* Granular Toggles */}
-            <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-slate-200 font-medium">1. Share Clinical History & Symptoms with Treating Doctor</span>
-                <input
-                  type="checkbox"
-                  checked={shareHistory}
-                  onChange={(e) => setShareHistory(e.target.checked)}
-                  className="w-4 h-4 accent-teal-500"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-slate-200 font-medium">2. Share Scanned Prescriptions & Lab OCR Digitization Timeline</span>
-                <input
-                  type="checkbox"
-                  checked={shareScannedDocs}
-                  onChange={(e) => setShareScannedDocs(e.target.checked)}
-                  className="w-4 h-4 accent-teal-500"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-slate-200 font-medium">3. Allow Anonymous Quality & Kiosk Analytics Improvement</span>
-                <input
-                  type="checkbox"
-                  checked={shareAnalytics}
-                  onChange={(e) => setShareAnalytics(e.target.checked)}
-                  className="w-4 h-4 accent-teal-500"
-                />
-              </label>
-
-              <div className="pt-2 border-t border-slate-900 flex items-center justify-between">
-                <span className="text-slate-400 font-semibold">Doctor Access Expiry Duration:</span>
-                <select
-                  value={accessDurationHours}
-                  onChange={(e) => setAccessDurationHours(Number(e.target.value))}
-                  className="bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-200 text-xs focus:outline-none"
-                >
-                  <option value={12}>12 Hours</option>
-                  <option value={24}>24 Hours (Default)</option>
-                  <option value={48}>48 Hours</option>
-                </select>
+                {otpSent && (
+                  <div className="p-4 bg-teal-500/10 border border-teal-500/30 rounded-2xl space-y-2 animate-in fade-in">
+                    <span className="text-teal-300 font-bold block">Aadhaar Sandbox OTP Verified:</span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={aadhaarOtp}
+                        onChange={(e) => setAadhaarOtp(e.target.value)}
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono text-center tracking-widest text-sm"
+                      />
+                      <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-xl border border-emerald-500/30 flex items-center">
+                        <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-400" /> Verified
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-              <Volume2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
-              <span>Audio explanation active in {language === 'hi' ? 'Hindi (हिंदी)' : 'English'}. Session automatically wipes upon submission.</span>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-4">
-            <button
-              onClick={handleGiveConsent}
-              disabled={loading}
-              className="px-6 py-2.5 bg-teal-500 text-slate-950 font-bold rounded-xl hover:bg-teal-400 transition-all text-sm"
-            >
-              {loading ? 'Processing...' : language === 'hi' ? 'सहमति दर्ज करें (Record Consent)' : 'Confirm Granular Consent'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Chief Complaint Input (Voice + Touch) */}
-      {step === 'cc' && (
-        <div className="py-6 space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-300 flex items-center justify-between">
-              <span>{language === 'hi' ? 'मुख्य लक्षण / समस्या (Chief Complaint):' : 'What is your main symptom or reason for visit?'}</span>
-              <span className="text-xs text-teal-400 flex items-center space-x-1">
-                <Mic className="w-3.5 h-3.5" />
-                <span>Voice input enabled</span>
-              </span>
-            </label>
-            <div className="relative">
-              <textarea
-                value={chiefComplaint}
-                onChange={(e) => {
-                  resetActivityTimer();
-                  setChiefComplaint(e.target.value);
-                }}
-                placeholder={
-                  language === 'hi'
-                    ? 'उदा: 2 दिनों से सीने में दर्द और चक्कर आना...'
-                    : 'e.g. Chest pain for 2 days radiating to left shoulder...'
-                }
-                rows={4}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-500"
-              />
+            <div className="text-center">
               <button
-                onClick={toggleVoiceInput}
-                className={`absolute right-3 bottom-3 p-3 rounded-xl transition-all ${
-                  isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-800 text-teal-400 hover:bg-slate-700'
-                }`}
+                onClick={handleStartSession}
+                disabled={loading}
+                className="px-10 py-4 bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 hover:brightness-110 text-slate-950 font-black rounded-2xl shadow-xl shadow-teal-500/20 transition-all text-base flex items-center space-x-3 mx-auto"
               >
-                {isListening ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                <span>{loading ? 'Initializing Session...' : language === 'hi' ? 'शुरू करें (Start Clinical Intake)' : 'Start Intake Session'}</span>
+                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           </div>
+        )}
 
-          {/* Quick Tap Symptoms */}
-          <div className="space-y-2">
-            <span className="text-xs text-slate-400">Quick Touch Selector (Elderly / Fast-Tap):</span>
-            <div className="flex flex-wrap gap-2">
-              {['Chest Pain', 'Fever & Cough', 'Severe Headache', 'Abdominal Pain', 'Shortness of Breath'].map((sym) => (
-                <button
-                  key={sym}
-                  onClick={() => {
-                    resetActivityTimer();
-                    setChiefComplaint(sym);
-                  }}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-teal-500/20 hover:border-teal-500/40 border border-slate-700 text-xs rounded-lg text-slate-300 transition-all"
-                >
-                  + {sym}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* STEP 2: DPDP ACT GRANULAR CONSENT */}
+        {step === 'consent' && (
+          <div className="py-4 space-y-6 animate-in fade-in duration-300">
+            <div className="p-6 bg-slate-950/80 border border-slate-850 rounded-3xl space-y-6">
+              <div className="flex items-center justify-between text-teal-300">
+                <div className="flex items-center space-x-3">
+                  <ShieldCheck className="w-7 h-7 text-teal-400" />
+                  <h4 className="font-extrabold text-lg">Module D: DPDP Act 2023 Granular Data Consent</h4>
+                </div>
+                <span className="px-3 py-1 bg-teal-500/20 text-teal-300 text-xs font-mono font-bold rounded-xl border border-teal-500/30">
+                  DPDP-2023 Framework
+                </span>
+              </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={handleSubmitChiefComplaint}
-              disabled={loading || !chiefComplaint.trim()}
-              className="px-6 py-2.5 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl disabled:opacity-50 text-sm flex items-center space-x-2"
-            >
-              <span>{language === 'hi' ? 'अगला सवाल (Next)' : 'Next Step'}</span>
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Under the Digital Personal Data Protection (DPDP) Act 2023 & ABDM framework, specify your data permissions. Audio explanations are enabled for low-literacy users.
+              </p>
 
-      {/* Step 4: SOCRATES / AYUSH Adaptive Questioning */}
-      {step === 'socrates' && (
-        <div className="py-6 space-y-6">
-          <div className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl space-y-1">
-            <span className="text-xs uppercase tracking-wider text-teal-400 font-bold">
-              {mode === 'ayush' ? 'AYUSH Dashavidha Pariksha Mode' : 'SOCRATES Adaptive Clinical Intake'}
-            </span>
-            <h4 className="text-base font-bold text-slate-100">Chief Complaint: "{chiefComplaint}"</h4>
-          </div>
+              {/* Granular Toggles */}
+              <div className="space-y-4 bg-slate-900/60 p-5 rounded-2xl border border-slate-800 text-xs">
+                <label className="flex items-center justify-between cursor-pointer p-2 rounded-xl hover:bg-slate-900 transition-colors">
+                  <span className="text-slate-200 font-semibold">1. Share Clinical History & Voice Responses with Doctor</span>
+                  <input
+                    type="checkbox"
+                    checked={shareHistory}
+                    onChange={(e) => setShareHistory(e.target.checked)}
+                    className="w-5 h-5 accent-teal-400"
+                  />
+                </label>
 
-          <div className="space-y-4">
-            {adaptiveQuestions.map((q) => (
-              <div key={q.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-                <label className="text-sm font-semibold text-slate-200 block">{q.question}</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {q.options.map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        resetActivityTimer();
-                        setSocratesAnswers({ ...socratesAnswers, [q.id]: opt });
-                      }}
-                      className={`px-3 py-2 text-xs font-medium rounded-lg border text-center transition-all ${
-                        socratesAnswers[q.id] === opt
-                          ? 'bg-teal-500 text-slate-950 border-teal-400 font-bold shadow-md'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <label className="flex items-center justify-between cursor-pointer p-2 rounded-xl hover:bg-slate-900 transition-colors">
+                  <span className="text-slate-200 font-semibold">2. Share Scanned Prescriptions & Digitized Lab Timeline</span>
+                  <input
+                    type="checkbox"
+                    checked={shareScannedDocs}
+                    onChange={(e) => setShareScannedDocs(e.target.checked)}
+                    className="w-5 h-5 accent-teal-400"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer p-2 rounded-xl hover:bg-slate-900 transition-colors">
+                  <span className="text-slate-200 font-semibold">3. Allow Anonymous Quality Improvement Analytics</span>
+                  <input
+                    type="checkbox"
+                    checked={shareAnalytics}
+                    onChange={(e) => setShareAnalytics(e.target.checked)}
+                    className="w-5 h-5 accent-teal-400"
+                  />
+                </label>
+
+                <div className="pt-3 border-t border-slate-800 flex items-center justify-between px-2">
+                  <span className="text-slate-400 font-semibold">Doctor Consent Access Expiry:</span>
+                  <select
+                    value={accessDurationHours}
+                    onChange={(e) => setAccessDurationHours(Number(e.target.value))}
+                    className="bg-slate-950 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs focus:outline-none"
+                  >
+                    <option value={12}>12 Hours</option>
+                    <option value={24}>24 Hours (Default)</option>
+                    <option value={48}>48 Hours</option>
+                  </select>
                 </div>
               </div>
-            ))}
-          </div>
 
-          <div className="flex justify-between items-center pt-2">
-            <button
-              onClick={() => setStep('ocr')}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-teal-400 border border-slate-700 font-bold rounded-xl text-xs flex items-center space-x-2"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Proceed to Module B Document OCR Upload</span>
-            </button>
-
-            <button
-              onClick={handleCompleteIntake}
-              disabled={loading}
-              className="px-6 py-2.5 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl text-sm shadow-lg hover:brightness-110"
-            >
-              {loading ? 'Synthesizing Draft Summary...' : 'Submit to Doctor Screen'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 4.5: Module B: Medical Document Digitization & OCR Pipeline */}
-      {step === 'ocr' && (
-        <div className="py-6 space-y-6 animate-in fade-in duration-200">
-          <div className="p-4 bg-teal-500/10 border border-teal-500/30 rounded-xl flex items-center justify-between">
-            <div className="flex items-center space-x-3 text-teal-300">
-              <FileText className="w-6 h-6 text-teal-400" />
-              <div>
-                <h4 className="font-bold text-base">Module B: Medical Document Digitization & OCR Pipeline</h4>
-                <p className="text-xs text-slate-400">Digitize Multi-Page Prescriptions, Lab Reports, & Discharge Summaries</p>
+              <div className="flex items-center space-x-2 text-xs text-slate-400 bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+                <Volume2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                <span>Spoken audio prompt active in {language === 'hi' ? 'Hindi (हिंदी)' : 'English'}. Session wipes automatically upon completion.</span>
               </div>
             </div>
-            <span className="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-full text-xs font-mono font-bold border border-teal-500/30">
-              Docling + Groq OCR Engine
-            </span>
-          </div>
 
-          {/* Upload & Parsing Control Card */}
-          <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Document Category:</label>
-                <select
-                  value={docType}
-                  onChange={(e) => setDocType(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500"
+            <div className="flex justify-end">
+              <button
+                onClick={handleGiveConsent}
+                disabled={loading}
+                className="px-8 py-3 bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 text-slate-950 font-black rounded-xl hover:brightness-110 transition-all text-sm flex items-center space-x-2 shadow-lg"
+              >
+                <span>{loading ? 'Processing...' : language === 'hi' ? 'सहमति दें (Record Consent)' : 'Confirm DPDP Consent'}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: CONVERSATIONAL HISTORY ENGINE (VOICE + TOUCH) */}
+        {step === 'cc' && (
+          <div className="py-4 space-y-6 animate-in fade-in duration-300">
+            <div className="space-y-3">
+              <label className="text-sm font-bold text-slate-200 flex items-center justify-between">
+                <span>{language === 'hi' ? 'अपनी बीमारी / मुख्य लक्षण बताएं:' : 'Describe your primary complaint or symptoms:'}</span>
+                <span className="text-xs text-teal-300 flex items-center space-x-1 font-semibold">
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>Voice & Multi-lingual Active</span>
+                </span>
+              </label>
+
+              <div className="relative">
+                <textarea
+                  value={chiefComplaint}
+                  onChange={(e) => {
+                    resetActivityTimer();
+                    setChiefComplaint(e.target.value);
+                  }}
+                  placeholder={
+                    language === 'hi'
+                      ? 'उदा: 2 दिनों से सीने में तेज दर्द और सांस फूलना (Chest pain for 2 days)...'
+                      : 'e.g. Sharp chest pain for 2 days radiating to left arm...'
+                  }
+                  rows={4}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-teal-400 rounded-2xl p-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-colors"
+                />
+                <button
+                  onClick={toggleVoiceInput}
+                  className={`absolute right-3 bottom-3 p-3.5 rounded-xl transition-all ${
+                    isListening ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/30' : 'bg-slate-900 border border-slate-800 text-teal-400 hover:bg-slate-800'
+                  }`}
+                  title="Speak in Hindi / English / Regional Language"
                 >
-                  <option value="Lab Report">Lab Report (e.g. HbA1c, Metabolic Panel)</option>
-                  <option value="Prescription">Paper Prescription (Handwritten/Printed)</option>
-                  <option value="Discharge Summary">Multi-Page Hospital Discharge Summary</option>
-                </select>
+                  {isListening ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Touch Button Grid for Rural / Elderly Users */}
+            <div className="space-y-2">
+              <span className="text-xs text-slate-400 font-semibold">Icon-Driven Fast-Touch Selector (Low-Literacy Friendly):</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { title: 'सीने में दर्द (Chest Pain)', en: 'Chest Pain' },
+                  { title: 'बुखार और खांसी (Fever & Cough)', en: 'Fever & Cough' },
+                  { title: 'सांस लेने में तकलीफ (Shortness of Breath)', en: 'Shortness of Breath' },
+                  { title: 'पेट दर्द (Abdominal Pain)', en: 'Abdominal Pain' },
+                  { title: 'सिरदर्द व चक्कर (Headache & Giddiness)', en: 'Severe Headache' },
+                  { title: 'शुगर / बीपी चेक (Diabetes / BP Check)', en: 'Diabetes Checkup' }
+                ].map((sym) => (
+                  <button
+                    key={sym.en}
+                    onClick={() => {
+                      resetActivityTimer();
+                      setChiefComplaint(sym.title);
+                    }}
+                    className="p-3 bg-slate-950 hover:bg-teal-500/10 hover:border-teal-500/40 border border-slate-850 rounded-xl text-left transition-all"
+                  >
+                    <span className="text-xs font-bold text-slate-200 block truncate">{sym.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleSubmitChiefComplaint}
+                disabled={loading || !chiefComplaint.trim()}
+                className="px-8 py-3 bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 text-slate-950 font-black rounded-xl disabled:opacity-50 text-sm flex items-center space-x-2 shadow-lg"
+              >
+                <span>{loading ? 'Evaluating Symptoms...' : language === 'hi' ? 'अगला सवाल (Next Question)' : 'Evaluate SOCRATES'}</span>
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: ADAPTIVE QUESTIONING (SOCRATES / AYUSH) */}
+        {step === 'socrates' && (
+          <div className="py-4 space-y-6 animate-in fade-in duration-300">
+            <div className="p-4 bg-slate-950 border border-slate-850 rounded-2xl space-y-1">
+              <span className="text-[11px] uppercase tracking-wider text-teal-400 font-black">
+                {mode === 'ayush' ? 'AYUSH Dashavidha Pariksha Intake' : 'SOCRATES Adaptive Clinical History Engine'}
+              </span>
+              <h4 className="text-base font-bold text-slate-100">Patient Complaint: "{chiefComplaint}"</h4>
+            </div>
+
+            <div className="space-y-4">
+              {adaptiveQuestions.map((q) => (
+                <div key={q.id} className="p-5 bg-slate-950 border border-slate-850 rounded-2xl space-y-3">
+                  <label className="text-sm font-bold text-slate-200 block">{q.question}</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {q.options.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => {
+                          resetActivityTimer();
+                          setSocratesAnswers({ ...socratesAnswers, [q.id]: opt });
+                        }}
+                        className={`p-3 text-xs font-bold rounded-xl border text-center transition-all ${
+                          socratesAnswers[q.id] === opt
+                            ? 'bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 border-teal-300 shadow-md font-extrabold'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2">
+              <button
+                onClick={() => setStep('ocr')}
+                className="w-full sm:w-auto px-5 py-3 bg-slate-950 hover:bg-slate-900 text-teal-300 border border-teal-500/30 font-bold rounded-xl text-xs flex items-center justify-center space-x-2"
+              >
+                <Upload className="w-4 h-4 text-teal-400" />
+                <span>Upload Old Prescriptions / Lab Docs (Module B)</span>
+              </button>
+
+              <button
+                onClick={handleCompleteIntake}
+                disabled={loading}
+                className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 text-slate-950 font-black rounded-xl text-sm shadow-lg hover:brightness-110"
+              >
+                {loading ? 'Synthesizing Summary...' : 'Push to Doctor Screen'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 5: MEDICAL DOCUMENT DIGITIZATION (OCR) */}
+        {step === 'ocr' && (
+          <div className="py-4 space-y-6 animate-in fade-in duration-300">
+            <div className="p-5 bg-teal-500/10 border border-teal-500/30 rounded-2xl flex items-center justify-between">
+              <div className="flex items-center space-x-3 text-teal-300">
+                <FileText className="w-6 h-6 text-teal-400" />
+                <div>
+                  <h4 className="font-bold text-base">Module B: Medical Document Digitization Pipeline</h4>
+                  <p className="text-xs text-slate-400">OCR on Handwritten Prescriptions & Lab Values with Reference Ranges</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-teal-500/20 text-teal-300 rounded-xl text-xs font-mono font-bold border border-teal-500/30">
+                Docling OCR
+              </span>
+            </div>
+
+            <div className="p-6 bg-slate-950 border border-slate-850 rounded-3xl space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Document Category:</label>
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-slate-200 focus:outline-none"
+                  >
+                    <option value="Lab Report">Lab Report (HbA1c, Metabolic Panel)</option>
+                    <option value="Prescription">Paper Prescription (Handwritten/Printed)</option>
+                    <option value="Discharge Summary">Discharge Summary</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Document Filename:</label>
+                  <input
+                    type="text"
+                    value={docFileName}
+                    onChange={(e) => setDocFileName(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-slate-200 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 font-semibold mb-1">Scanned Document Filename:</label>
-                <input
-                  type="text"
-                  value={docFileName}
-                  onChange={(e) => setDocFileName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-teal-500"
+                <label className="block text-xs text-slate-400 font-semibold mb-1">
+                  Multi-Page OCR Input Stream / Raw Text Content:
+                </label>
+                <textarea
+                  value={ocrInputText}
+                  onChange={(e) => {
+                    resetActivityTimer();
+                    setOcrText(e.target.value);
+                  }}
+                  rows={4}
+                  className="w-full bg-slate-900 border border-slate-850 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs text-slate-400 font-semibold mb-1">
-                Multi-Page Scanned Content / OCR Input Stream:
-              </label>
-              <textarea
-                value={ocrInputText}
-                onChange={(e) => {
-                  resetActivityTimer();
-                  setOcrText(e.target.value);
-                }}
-                rows={4}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div className="flex justify-between items-center pt-2">
-              <div className="flex gap-2">
+              <div className="flex justify-between items-center pt-2">
                 <button
                   type="button"
                   onClick={() => setOcrText('Page 1: Prescription Metformin 500mg BD\n--- NEXT PAGE ---\nPage 2: HbA1c 8.4% High, Creatinine 1.5 High')}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-xs text-teal-400"
+                  className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-teal-300"
                 >
-                  Load Sample Multi-Page Lab (HbA1c &gt; 8.0%)
+                  Load Sample Lab (HbA1c &gt; 8.0%)
+                </button>
+
+                <button
+                  onClick={handleRunOcrDigitization}
+                  disabled={digitizing}
+                  className="px-6 py-2.5 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-black rounded-xl text-xs flex items-center space-x-2 shadow-lg disabled:opacity-50"
+                >
+                  <Upload className={`w-4 h-4 ${digitizing ? 'animate-bounce' : ''}`} />
+                  <span>{digitizing ? 'Parsing OCR...' : 'Digitize & Parse Document'}</span>
                 </button>
               </div>
+            </div>
+
+            {/* Render Digitized Artifacts */}
+            {scannedDocs.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-300 flex items-center space-x-2">
+                  <FileCheck className="w-4 h-4 text-teal-400" />
+                  <span>Parsed Document Artifacts ({scannedDocs.length})</span>
+                </h4>
+                {scannedDocs.map((doc, idx) => (
+                  <div key={idx} className="p-4 bg-slate-950 border border-teal-500/30 rounded-2xl space-y-3 text-xs">
+                    <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                      <span className="font-bold text-teal-300">{doc.fileName} ({doc.docType})</span>
+                      <span className="text-slate-500 font-mono">{doc.id}</span>
+                    </div>
+
+                    {doc.abnormalLabFlags && doc.abnormalLabFlags.length > 0 && (
+                      <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 font-medium">
+                        ⚠️ High Alert: {doc.abnormalLabFlags.join(', ')}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="p-2.5 bg-slate-900 rounded-xl">
+                        <span className="text-slate-400 font-bold block mb-1">Diagnosis:</span>
+                        <span className="text-teal-300">{doc.extractedDiagnosis || 'None'}</span>
+                      </div>
+                      <div className="p-2.5 bg-slate-900 rounded-xl">
+                        <span className="text-slate-400 font-bold block mb-1">Medications:</span>
+                        <span className="text-slate-200">{doc.extractedMedications?.map((m: any) => m.name).join(', ') || 'None'}</span>
+                      </div>
+                      <div className="p-2.5 bg-slate-900 rounded-xl">
+                        <span className="text-slate-400 font-bold block mb-1">Labs:</span>
+                        <span className="text-slate-200">{doc.extractedLabValues?.map((l: any) => `${l.test}: ${l.result}`).join(', ') || 'None'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2">
+              <button
+                onClick={() => setStep('socrates')}
+                className="px-5 py-2.5 bg-slate-900 text-slate-300 font-bold rounded-xl text-xs"
+              >
+                Back to Questions
+              </button>
 
               <button
-                onClick={handleRunOcrDigitization}
-                disabled={digitizing}
-                className="px-6 py-2.5 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-2 shadow-lg hover:brightness-110 disabled:opacity-50"
+                onClick={handleCompleteIntake}
+                disabled={loading}
+                className="px-8 py-3 bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 text-slate-950 font-black rounded-xl text-sm shadow-lg"
               >
-                <Upload className={`w-4 h-4 ${digitizing ? 'animate-bounce' : ''}`} />
-                <span>{digitizing ? 'Extracting via Docling OCR...' : 'Digitize & Parse Document'}</span>
+                {loading ? 'Generating Doctor Summary...' : 'Submit to Doctor Portal'}
               </button>
             </div>
           </div>
+        )}
 
-          {/* Digitized Output Cards */}
-          {scannedDocs.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold text-slate-200 flex items-center space-x-2">
-                <FileCheck className="w-4 h-4 text-teal-400" />
-                <span>Digitized Document Artifacts ({scannedDocs.length})</span>
+        {/* STEP 6: MODULE C - BILINGUAL DRAFT SUMMARY FOR DOCTOR */}
+        {step === 'summary' && doctorSummary && (
+          <div className="py-4 space-y-6 animate-in fade-in duration-300">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between text-emerald-300">
+              <div className="flex items-center space-x-2 text-sm font-bold">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span>Intake Complete! Structured Clinical Summary Pushed to Doctor Workspace</span>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-950 border border-slate-850 rounded-3xl space-y-5">
+              <h4 className="text-xs uppercase tracking-wider text-teal-300 font-black flex items-center justify-between">
+                <span className="flex items-center space-x-2">
+                  <Heart className="w-4 h-4 text-teal-400" />
+                  <span>Structured SOAP Summary (Chief Complaint → HPI → Past Medical → ROS → Investigations)</span>
+                </span>
               </h4>
 
-              {scannedDocs.map((doc, idx) => (
-                <div key={idx} className="p-5 bg-slate-950 border border-teal-500/30 rounded-xl space-y-4">
-                  <div className="flex justify-between items-start border-b border-slate-850 pb-3">
-                    <div>
-                      <span className="text-xs font-bold text-teal-400 font-mono">{doc.id}</span>
-                      <h5 className="text-sm font-bold text-slate-100">{doc.fileName} ({doc.docType})</h5>
-                    </div>
-                    {doc.pageCount && (
-                      <span className="flex items-center space-x-1 px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 rounded-lg text-xs">
-                        <Layers className="w-3.5 h-3.5 text-teal-400" />
-                        <span>{doc.pageCount} Pages</span>
-                      </span>
-                    )}
+              <div className="space-y-3 text-xs">
+                <div className="p-3.5 bg-slate-900 rounded-xl border border-slate-850">
+                  <span className="text-teal-400 font-bold block mb-1">1. Chief Complaint:</span>
+                  <p className="text-slate-200">{doctorSummary.structuredSOAP.chiefComplaint}</p>
+                </div>
+
+                <div className="p-3.5 bg-slate-900 rounded-xl border border-slate-850">
+                  <span className="text-teal-400 font-bold block mb-1">2. HPI (SOCRATES):</span>
+                  <p className="text-slate-200">{doctorSummary.structuredSOAP.historyOfPresentIllness}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3.5 bg-slate-900 rounded-xl border border-slate-850">
+                    <span className="text-teal-400 font-bold block mb-1">3. Past History:</span>
+                    <p className="text-slate-200">{doctorSummary.structuredSOAP.pastMedicalHistory || 'None reported'}</p>
+                    <p className="text-rose-400 font-semibold mt-1">Allergies: {doctorSummary.structuredSOAP.allergies || 'NKDA'}</p>
                   </div>
 
-                  {/* Abnormal Lab Flag Alert Box */}
-                  {doc.abnormalLabFlags && doc.abnormalLabFlags.length > 0 && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg space-y-1">
-                      <span className="text-xs font-bold text-rose-400 flex items-center space-x-1">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        <span>ABNORMAL LAB FLAGGED IN TIMELINE:</span>
-                      </span>
-                      <ul className="list-disc list-inside text-xs text-rose-300">
-                        {doc.abnormalLabFlags.map((flag: string, fIdx: number) => (
-                          <li key={fIdx}>{flag}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Extracted Entities Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                      <span className="text-slate-400 font-semibold block mb-1">Extracted Diagnosis:</span>
-                      <span className="px-2 py-1 bg-teal-500/20 text-teal-300 rounded font-medium border border-teal-500/30 inline-block">
-                        {doc.extractedDiagnosis || 'None identified'}
-                      </span>
-                    </div>
-
-                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                      <span className="text-slate-400 font-semibold block mb-1">Active Medications:</span>
-                      {doc.extractedMedications && doc.extractedMedications.length > 0 ? (
-                        <ul className="space-y-1">
-                          {doc.extractedMedications.map((m: any, mIdx: number) => (
-                            <li key={mIdx} className="text-slate-200 font-mono">
-                              • {m.name} ({m.dosage})
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-slate-500">None extracted</span>
-                      )}
-                    </div>
-
-                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                      <span className="text-slate-400 font-semibold block mb-1">Extracted Lab Values:</span>
-                      {doc.extractedLabValues && doc.extractedLabValues.length > 0 ? (
-                        <ul className="space-y-1">
-                          {doc.extractedLabValues.map((l: any, lIdx: number) => (
-                            <li key={lIdx} className={l.isAbnormal ? 'text-rose-400 font-bold' : 'text-slate-300'}>
-                              • {l.test}: {l.result} {l.unit} ({l.referenceRange})
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-slate-500">None extracted</span>
-                      )}
-                    </div>
+                  <div className="p-3.5 bg-slate-900 rounded-xl border border-slate-850">
+                    <span className="text-teal-400 font-bold block mb-1">4. Review of Systems:</span>
+                    <p className="text-slate-200">{doctorSummary.structuredSOAP.reviewOfSystems || 'Negative except CC'}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex justify-between items-center pt-2">
-            <button
-              onClick={() => setStep('socrates')}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs"
-            >
-              Back to Questions
-            </button>
-
-            <button
-              onClick={handleCompleteIntake}
-              disabled={loading}
-              className="px-6 py-2.5 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-950 font-bold rounded-xl text-sm shadow-lg hover:brightness-110"
-            >
-              {loading ? 'Synthesizing Draft Summary...' : 'Submit All & Generate Doctor Summary'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 5: Module C - Bilingual Draft Summary View & Module D Ephemeral Memory Wipe Banner */}
-      {step === 'summary' && doctorSummary && (
-        <div className="py-6 space-y-6 animate-in fade-in duration-200">
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-emerald-300">
-            <div className="flex items-center space-x-2 text-sm">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              <span>Module C Complete: Bilingual Pre-Consultation Summary Draft Synchronized with Doctor Screen!</span>
-            </div>
-          </div>
-
-          {/* Module C Dual-View Box */}
-          <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-5">
-            <h4 className="text-sm uppercase tracking-wider text-teal-400 font-bold flex items-center justify-between">
-              <span className="flex items-center space-x-2">
-                <Heart className="w-4 h-4 text-teal-400" />
-                <span>Structured SOAP Draft Summary (Chief Complaint → HPI → Past History → ROS → Prior Investigations)</span>
-              </span>
-              <span className="text-xs text-slate-400 font-mono">Bilingual Dual-View Active</span>
-            </h4>
-
-            {/* 5-Stage Structured SOAP Flow Grid */}
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-                <span className="text-teal-400 font-bold block">1. Chief Complaint:</span>
-                <p className="text-slate-200">{doctorSummary.structuredSOAP.chiefComplaint}</p>
               </div>
 
-              <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-                <span className="text-teal-400 font-bold block">2. History of Present Illness (HPI):</span>
-                <p className="text-slate-200">{doctorSummary.structuredSOAP.historyOfPresentIllness}</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-                  <span className="text-teal-400 font-bold block">3. Past Medical History & Allergies:</span>
-                  <p className="text-slate-200">{doctorSummary.structuredSOAP.pastMedicalHistory || 'None reported'}</p>
-                  <p className="text-rose-400 font-medium">Allergies: {doctorSummary.structuredSOAP.allergies || 'No known drug allergies'}</p>
+              {/* Spoken Audio Banner */}
+              <div className="p-4 bg-teal-500/10 border border-teal-500/30 rounded-2xl space-y-2 text-xs">
+                <div className="flex justify-between items-center text-teal-300 font-bold">
+                  <span className="flex items-center space-x-2">
+                    <Volume2 className="w-4 h-4 text-teal-400" />
+                    <span>Localized Spoken Confirmation (Hindi / Local dialect):</span>
+                  </span>
                 </div>
-
-                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-                  <span className="text-teal-400 font-bold block">4. Review of Systems (ROS):</span>
-                  <p className="text-slate-200">{doctorSummary.structuredSOAP.reviewOfSystems || 'Negative except CC'}</p>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
-                <span className="text-teal-400 font-bold block">5. Prior Investigations Timeline (Scanned Documents):</span>
-                <p className="text-slate-300 font-mono">{doctorSummary.structuredSOAP.priorInvestigations || doctorSummary.structuredSOAP.priorInvestigationsTimeline || 'No prior documents attached'}</p>
+                <p className="text-slate-200 italic p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+                  "{doctorSummary.bilingualAudioConfirmation.patientAudioText}"
+                </p>
               </div>
             </div>
 
-            {/* Bilingual Audio Confirmation Box */}
-            <div className="p-4 bg-teal-500/10 border border-teal-500/30 rounded-xl space-y-3 text-xs">
-              <div className="flex justify-between items-center text-teal-300 font-bold">
-                <span className="flex items-center space-x-2">
-                  <Volume2 className="w-4 h-4 text-teal-400" />
-                  <span>Bilingual Spoken Audio Confirmation (Localized Patient Voice Text):</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => alert(`Playing spoken audio: "${doctorSummary.bilingualAudioConfirmation.patientAudioText}"`)}
-                  className="px-3 py-1 bg-teal-500 text-slate-950 rounded-lg text-xs font-bold hover:bg-teal-400 flex items-center space-x-1"
-                >
-                  <Volume2 className="w-3.5 h-3.5" />
-                  <span>Play Spoken Audio</span>
-                </button>
-              </div>
-              <p className="text-slate-200 italic p-3 bg-slate-900/90 rounded-lg border border-slate-800">
-                "{doctorSummary.bilingualAudioConfirmation.patientAudioText}"
-              </p>
-              <div className="text-slate-400 text-[11px] pt-1">
-                <span className="font-semibold text-slate-300">Doctor English Executive Stream:</span> {doctorSummary.bilingualAudioConfirmation.doctorEnglishSummary}
-              </div>
+            <div className="flex justify-center">
+              <button
+                onClick={() => handleWipeSessionMemory('Intake completed & memory purged.')}
+                className="px-8 py-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-black rounded-xl text-xs border border-rose-500/30 transition-all flex items-center space-x-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Wipe Session Memory & Reset Kiosk</span>
+              </button>
             </div>
           </div>
-
-          <div className="flex justify-center space-x-4">
-            <button
-              onClick={() => handleWipeSessionMemory('Intake completed & memory purged.')}
-              className="px-6 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold rounded-xl text-xs border border-rose-500/30 transition-all flex items-center space-x-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Wipe Ephemeral Kiosk Memory & Finish</span>
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
