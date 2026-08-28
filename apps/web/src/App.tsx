@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, XCircle, RefreshCw, Cpu, Database, Activity, Terminal, UserPlus, Users, LogOut, Key, Calendar, FileText, CreditCard } from 'lucide-react';
-import PatientRegistration from './components/PatientRegistration.tsx';
+import {
+  Shield, Sparkles, LogOut, Stethoscope, User, Activity, Heart,
+  CheckCircle2, Lock, HelpCircle, ArrowUpRight
+} from 'lucide-react';
 import Login from './components/Login.tsx';
-import AppointmentManagement from './components/AppointmentManagement.tsx';
-import PatientCheckin from './components/PatientCheckin.tsx';
-import PatientTriage from './components/PatientTriage.tsx';
 import DoctorWorkspace from './components/DoctorWorkspace.tsx';
-import MedicalDocumentation from './components/MedicalDocumentation.tsx';
-import DiagnosticsConsole from './components/DiagnosticsConsole.tsx';
-import BillingConsole from './components/BillingConsole.tsx';
-import DischargeWorkspace from './components/DischargeWorkspace.tsx';
-import HospitalAnalytics from './components/HospitalAnalytics.tsx';
 import { MediKioskIntake } from './components/MediKioskIntake.tsx';
 
 interface HealthDetails {
@@ -26,18 +20,6 @@ interface HealthResponse {
   details: HealthDetails;
 }
 
-interface Patient {
-  hospitalId: string;
-  firstName: string;
-  lastName: string;
-  gender: string;
-  dateOfBirth: string;
-  phone: string;
-  email?: string;
-  status: string;
-  createdAt: string;
-}
-
 interface UserProfile {
   userId: string;
   firstName: string;
@@ -47,46 +29,21 @@ interface UserProfile {
 }
 
 export default function App() {
-  // Authentication State
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge' | 'analytics' | 'medikiosk'>('medikiosk');
+  // Active view toggle: Intake Kiosk vs Doctor Workspace vs Platform Showcase
+  const [activeTab, setActiveTab] = useState<'intake' | 'doctor' | 'overview'>('intake');
+  const [purposeSpecialty, setPurposeSpecialty] = useState<'cardiology' | 'endocrinology'>('cardiology');
 
-  // Diagnostics State
   const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [agentPayload, setAgentPayload] = useState<any>(null);
-  const [agentRunning, setAgentRunning] = useState(false);
-  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
-
-  // RBAC Admin endpoint testing state
-  const [adminResult, setAdminResult] = useState<any>(null);
-  const [adminTesting, setAdminTesting] = useState(false);
-
-  // Patients list state
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loadingPatients, setLoadingPatients] = useState(false);
-
-  const addLog = (msg: string) => {
-    setConsoleLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 19)]);
-  };
 
   const fetchHealth = async () => {
-    setError(null);
-    addLog("Polling Express API health status...");
     try {
       const res = await fetch('http://localhost:5000/api/v1/health');
       const data = await res.json();
       setHealth(data);
-      if (data.status === 'UP') {
-        addLog("System Health Check: ALL SYSTEMS OPERATIONAL");
-      } else {
-        addLog(`System Health Check: PARTIAL OUTAGE (DB: ${data.details.mongodb}, AI: ${data.details.aiService})`);
-      }
     } catch (err) {
-      setError("Cannot reach Express API server at http://localhost:5000");
       setHealth({
         status: 'DOWN',
         timestamp: new Date().toISOString(),
@@ -97,112 +54,26 @@ export default function App() {
           aiServiceError: 'Express API Unreachable'
         }
       });
-      addLog("System Health Check: API SERVER UNREACHABLE");
-    }
-  };
-
-  const fetchPatients = async () => {
-    setLoadingPatients(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/v1/patients');
-      const result = await res.json();
-      if (result.success) {
-        setPatients(result.data);
-      }
-    } catch (err) {
-      console.error("Failed to load patients list", err);
-    } finally {
-      setLoadingPatients(false);
-    }
-  };
-
-  const testAIService = async () => {
-    setAgentRunning(true);
-    addLog("Sending payload through Express backend to FastAPI AI Agent service...");
-    try {
-      const response = await fetch('http://localhost:5000/api/v1/health');
-      if (!response.ok && response.status !== 503) {
-        throw new Error("Express backend is offline");
-      }
-      
-      addLog("Validating connection to FastAPI /api/v1/agent/run...");
-      
-      const payload = {
-        test: true,
-        message: "Scaffolding connection validation",
-        timestamp: new Date().toISOString()
-      };
-      
-      const aiResponse = await fetch('http://localhost:8000/api/v1/agent/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!aiResponse.ok) {
-        throw new Error(`AI service returned HTTP ${aiResponse.status}`);
-      }
-      
-      const result = await aiResponse.json();
-      setAgentPayload(result);
-      addLog("Successfully completed round-trip to FastAPI AI Service!");
-    } catch (err) {
-      addLog(`AI service integration test failed: ${(err as Error).message}`);
-      setAgentPayload({ error: (err as Error).message });
-    } finally {
-      setAgentRunning(false);
-    }
-  };
-
-  const testAdminRestricted = async () => {
-    if (!token) return;
-    setAdminTesting(true);
-    setAdminResult(null);
-    addLog(`Invoking Admin-restricted API (authenticated as ${user?.role})...`);
-    try {
-      const response = await fetch('http://localhost:5000/api/v1/admin/debug-restricted', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const result = await response.json();
-      setAdminResult(result);
-      
-      if (response.status === 200) {
-        addLog("Access check: SUCCESS (Admin permission validated!)");
-      } else if (response.status === 403) {
-        addLog("Access check: BLOCKED (403 Forbidden - RBAC enforced!)");
-      } else {
-        addLog(`Access check: FAILED with status ${response.status}`);
-      }
-    } catch (err) {
-      addLog(`Restricted test failed: ${(err as Error).message}`);
-    } finally {
-      setAdminTesting(false);
     }
   };
 
   const handleLoginSuccess = (userProfile: UserProfile, jwtToken: string) => {
     setUser(userProfile);
     setToken(jwtToken);
-    localStorage.setItem('hospitalos_user', JSON.stringify(userProfile));
-    localStorage.setItem('hospitalos_token', jwtToken);
-    addLog(`User authenticated successfully: ${userProfile.firstName} (${userProfile.role})`);
+    localStorage.setItem('aethera_user', JSON.stringify(userProfile));
+    localStorage.setItem('aethera_token', jwtToken);
   };
 
   const handleLogout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('hospitalos_user');
-    localStorage.removeItem('hospitalos_token');
-    addLog("Session closed. User signed out.");
+    localStorage.removeItem('aethera_user');
+    localStorage.removeItem('aethera_token');
   };
 
-  // Restore session
   useEffect(() => {
-    const savedUser = localStorage.getItem('hospitalos_user');
-    const savedToken = localStorage.getItem('hospitalos_token');
+    const savedUser = localStorage.getItem('aethera_user');
+    const savedToken = localStorage.getItem('aethera_token');
     if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
       setToken(savedToken);
@@ -215,143 +86,86 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (activeTab === 'registration' && token) {
-      fetchPatients();
-    }
-  }, [activeTab, token]);
-
-  // View 1: Logged Out (Login view)
   if (!user || !token) {
     return (
-      <div className="min-h-screen bg-[#060814] text-slate-100 flex flex-col items-center justify-center p-6 selection:bg-indigo-500 selection:text-white">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[120px] pointer-events-none"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="min-h-screen bg-[#060814] text-slate-100 flex flex-col items-center justify-center p-6 selection:bg-teal-500 selection:text-white">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <Login onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }
 
-  // View 2: Logged In (Dashboard portal)
   return (
-    <div className="min-h-screen bg-[#060814] text-slate-100 flex flex-col p-6 relative selection:bg-indigo-500 selection:text-white">
-      {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+    <div className="min-h-screen bg-[#060814] text-slate-100 flex flex-col p-4 md:p-6 relative selection:bg-teal-500 selection:text-white font-sans">
+      {/* Background radial glows matching Aethera branding */}
+      <div className="absolute top-0 left-1/3 w-[600px] h-[400px] bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent rounded-full blur-[140px] pointer-events-none"></div>
+      <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] bg-gradient-to-tr from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-[150px] pointer-events-none"></div>
 
-      <div className="w-full max-w-7xl mx-auto z-10 flex-1 flex flex-col justify-between">
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 pb-6 border-b border-slate-900">
+      <div className="w-full max-w-7xl mx-auto z-10 flex-1 flex flex-col justify-between space-y-8">
+        {/* Top Navbar */}
+        <header className="flex flex-col sm:flex-row justify-between items-center pb-5 border-b border-slate-850/80 gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-tr from-sky-500 to-indigo-600 rounded-xl shadow-lg shadow-indigo-500/10">
-              <Shield className="w-8 h-8 text-white" />
+            <div className="p-2.5 bg-gradient-to-tr from-teal-400 via-cyan-400 to-indigo-500 rounded-2xl shadow-xl shadow-teal-500/10 text-slate-950">
+              <Shield className="w-7 h-7" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                HospitalOS
-              </h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-xs text-sky-400 font-medium uppercase tracking-wider">Internal Operating Portal</p>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-850">
-                  {user.role}
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-teal-300 via-cyan-200 to-white bg-clip-text text-transparent">
+                  AETHERA
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  AI Clinical Intake Platform
                 </span>
               </div>
+              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                Sovereign clinical data operating fabric & self-service history intake
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 max-w-full overflow-x-auto">
+          <div className="flex items-center gap-3">
             {/* Navigation Tabs */}
-            <div className="flex bg-slate-950 border border-slate-850 rounded-xl p-1 overflow-x-auto max-w-full">
+            <div className="flex bg-slate-950/90 border border-slate-800 rounded-2xl p-1 shadow-inner">
               <button
-                onClick={() => setActiveTab('appointments')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'appointments' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+                onClick={() => setActiveTab('intake')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeTab === 'intake'
+                    ? 'bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <Calendar className="w-4 h-4" />
-                Appointments
+                <User className="w-4 h-4" />
+                Patient Intake Kiosk
               </button>
               <button
-                onClick={() => setActiveTab('registration')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'registration' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+                onClick={() => setActiveTab('doctor')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeTab === 'doctor'
+                    ? 'bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <UserPlus className="w-4 h-4" />
-                Patient Registration
+                <Stethoscope className="w-4 h-4" />
+                Doctor Workspace
               </button>
               <button
-                onClick={() => setActiveTab('checkin')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'checkin' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <Users className="w-4 h-4" />
-                Patient Check-In
-              </button>
-              <button
-                onClick={() => setActiveTab('triage')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'triage' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeTab === 'overview'
+                    ? 'bg-gradient-to-r from-teal-400 via-cyan-400 to-indigo-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
                 <Activity className="w-4 h-4" />
-                Patient Triage
-              </button>
-              <button
-                onClick={() => setActiveTab('consultation')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'consultation' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <Activity className="w-4 h-4" />
-                Consultation Workspace
-              </button>
-              <button
-                onClick={() => setActiveTab('documentation')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'documentation' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <FileText className="w-4 h-4" />
-                Medical Documentation
-              </button>
-              <button
-                onClick={() => setActiveTab('diagnostics')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'diagnostics' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <FileText className="w-4 h-4" />
-                Diagnostics Console
-              </button>
-              <button
-                onClick={() => setActiveTab('billing')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'billing' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <CreditCard className="w-4 h-4" />
-                Billing Console
-              </button>
-              <button
-                onClick={() => setActiveTab('discharge')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'discharge' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <LogOut className="w-4 h-4" />
-                Patient Discharge
-              </button>
-              <button
-                onClick={() => setActiveTab('medikiosk')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'medikiosk' ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <Cpu className="w-4 h-4 text-teal-400" />
-                MediKiosk Intake
-              </button>
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <Activity className="w-4 h-4" />
-                Hospital Analytics
-              </button>
-              <button
-                onClick={() => setActiveTab('health')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'health' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
-              >
-                <Activity className="w-4 h-4" />
-                System Diagnostics
+                Platform Overview
               </button>
             </div>
 
-            {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-400 text-sm font-medium transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-400 text-xs font-bold transition-all"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
@@ -360,299 +174,192 @@ export default function App() {
           </div>
         </header>
 
-        {/* Tab 1: Patient Registration */}
-        {activeTab === 'registration' && (
-          <div className="space-y-8 animate-in fade-in duration-200">
-            <PatientRegistration />
+        {/* Hero Banner (Matching aetheraa.vercel.app aesthetic) */}
+        <div className="relative bg-gradient-to-r from-slate-950 via-[#090d1f] to-slate-950 border border-slate-850 rounded-3xl p-6 sm:p-8 overflow-hidden shadow-2xl">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-            {/* List of patients */}
-            <div className="glow-card rounded-3xl bg-slate-950/60 backdrop-blur-md border border-slate-900 p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-200 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-indigo-400" /> Registered Patient Profiles
-                </h3>
-                <button
-                  onClick={fetchPatients}
-                  disabled={loadingPatients}
-                  className="p-2 rounded-lg bg-slate-900 border border-slate-850 text-slate-400 hover:text-slate-200 transition-colors"
-                  title="Reload list"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loadingPatients ? 'animate-spin' : ''}`} />
-                </button>
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-extrabold tracking-wider uppercase">
+                <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                <span>YOUR HEALTH, CONNECTED</span>
               </div>
-
-              {patients.length === 0 ? (
-                <div className="text-center py-12 text-slate-600 border border-dashed border-slate-900 rounded-2xl bg-slate-950/30">
-                  <Users className="w-8 h-8 mx-auto mb-2 text-slate-700" />
-                  No patients registered in the system yet.
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-slate-900 rounded-2xl bg-slate-950/40">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-900 bg-slate-950 text-slate-400 text-xs font-semibold uppercase">
-                        <th className="px-6 py-4">Hospital ID</th>
-                        <th className="px-6 py-4">Full Name</th>
-                        <th className="px-6 py-4">Gender</th>
-                        <th className="px-6 py-4">Date of Birth</th>
-                        <th className="px-6 py-4">Phone</th>
-                        <th className="px-6 py-4">Registered Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-900/60 text-sm text-slate-300">
-                      {patients.map((patient) => (
-                        <tr key={patient.hospitalId} className="hover:bg-slate-900/20 transition-colors">
-                          <td className="px-6 py-4 font-mono font-bold text-sky-400">{patient.hospitalId}</td>
-                          <td className="px-6 py-4 font-medium text-slate-200">{patient.firstName} {patient.lastName}</td>
-                          <td className="px-6 py-4 capitalize">{patient.gender}</td>
-                          <td className="px-6 py-4">{new Date(patient.dateOfBirth).toLocaleDateString()}</td>
-                          <td className="px-6 py-4 font-mono">{patient.phone}</td>
-                          <td className="px-6 py-4 text-slate-500">{new Date(patient.createdAt).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 1.5: Appointment Management */}
-        {activeTab === 'appointments' && (
-          <AppointmentManagement />
-        )}
-
-        {/* Tab 1.6: Patient Check-In */}
-        {activeTab === 'checkin' && (
-          <PatientCheckin />
-        )}
-
-        {/* Tab 1.7: Patient Triage */}
-        {activeTab === 'triage' && (
-          <PatientTriage />
-        )}
-
-        {/* Tab 1.8: Consultation Workspace */}
-        {activeTab === 'consultation' && (
-          <DoctorWorkspace />
-        )}
-
-        {/* Tab 1.9: Medical Documentation */}
-        {activeTab === 'documentation' && (
-          <MedicalDocumentation />
-        )}
-
-        {/* Tab 1.10: Diagnostics Console */}
-        {activeTab === 'diagnostics' && (
-          <DiagnosticsConsole />
-        )}
-
-        {/* Tab 1.11: Billing Console */}
-        {activeTab === 'billing' && (
-          <BillingConsole token={token} addLog={addLog} />
-        )}
-
-        {/* Tab 1.12: Patient Discharge */}
-        {activeTab === 'discharge' && (
-          <DischargeWorkspace token={token} addLog={addLog} />
-        )}
-
-        {/* Tab 1.13: MediKiosk Intake */}
-        {activeTab === 'medikiosk' && (
-          <MediKioskIntake />
-        )}
-
-        {/* Tab 1.14: Hospital Analytics */}
-        {activeTab === 'analytics' && (
-          <HospitalAnalytics />
-        )}
-
-        {/* Tab 2: System Diagnostics */}
-        {activeTab === 'health' && (
-          <div className="space-y-8 animate-in fade-in duration-200">
-            {/* Dashboard Status Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Express API card */}
-              <div className="glow-card rounded-2xl p-6 bg-slate-950/60 backdrop-blur-md flex flex-col justify-between min-h-[140px]">
-                <div className="flex justify-between items-start">
-                  <span className="text-sm font-medium text-slate-400">Express API</span>
-                  <Activity className="w-5 h-5 text-sky-400" />
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-slate-500">Port 5000</p>
-                    <p className="text-lg font-semibold mt-0.5">http://localhost:5000</p>
-                  </div>
-                  {health?.details.api === 'UP' ? (
-                    <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                      <CheckCircle className="w-3.5 h-3.5" /> UP
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">
-                      <XCircle className="w-3.5 h-3.5" /> DOWN
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* MongoDB card */}
-              <div className="glow-card rounded-2xl p-6 bg-slate-950/60 backdrop-blur-md flex flex-col justify-between min-h-[140px]">
-                <div className="flex justify-between items-start">
-                  <span className="text-sm font-medium text-slate-400">MongoDB Connection</span>
-                  <Database className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-slate-500">Mongoose Client</p>
-                    <p className="text-lg font-semibold mt-0.5">Connected State</p>
-                  </div>
-                  {health?.details.mongodb === 'UP' ? (
-                    <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                      <CheckCircle className="w-3.5 h-3.5" /> CONNECTED
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">
-                      <XCircle className="w-3.5 h-3.5" /> DOWN
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* FastAPI AI Service card */}
-              <div className="glow-card rounded-2xl p-6 bg-slate-950/60 backdrop-blur-md flex flex-col justify-between min-h-[140px]">
-                <div className="flex justify-between items-start">
-                  <span className="text-sm font-medium text-slate-400">FastAPI AI Service</span>
-                  <Cpu className="w-5 h-5 text-indigo-400" />
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-slate-500">Port 8000</p>
-                    <p className="text-lg font-semibold mt-0.5">http://localhost:8000</p>
-                  </div>
-                  {health?.details.aiService === 'UP' ? (
-                    <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                      <CheckCircle className="w-3.5 h-3.5" /> UP
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">
-                      <XCircle className="w-3.5 h-3.5" /> DOWN
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Test Integrations: AI & Admin-Restricted RBAC */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Box 1: FastAPI AI Agent */}
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-950/40 p-6 flex flex-col justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
-                    <Cpu className="w-4 h-4 text-indigo-400" /> AI Connection Validator
-                  </h2>
-                  <p className="text-sm text-slate-400 mb-6">
-                    Run a round-trip connection test. The frontend will trigger a request to the FastAPI AI service to verify CORS, middleware routing, and response capabilities.
-                  </p>
-                </div>
-                <div>
-                  <button
-                    onClick={testAIService}
-                    disabled={agentRunning}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-medium text-sm transition-all shadow-lg shadow-indigo-500/15 disabled:opacity-50"
-                  >
-                    {agentRunning ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Testing AI Connection...
-                      </>
-                    ) : (
-                      "Run AI Connection Test"
-                    )}
-                  </button>
-
-                  {agentPayload && (
-                    <div className="mt-4">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">AI Response Payload</p>
-                      <pre className="p-4 bg-slate-950 border border-slate-900 rounded-xl text-xs font-mono overflow-auto max-h-[140px] text-sky-400">
-                        {JSON.stringify(agentPayload, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Box 2: RBAC Validator */}
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-950/40 p-6 flex flex-col justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
-                    <Key className="w-4 h-4 text-emerald-400" /> Role-Based Access (RBAC) Inspector
-                  </h2>
-                  <p className="text-sm text-slate-400 mb-6">
-                    Test backend permission security. Receptionists should be blocked from administrator endpoints, while Administrators should pass successfully.
-                  </p>
-                </div>
-                <div>
-                  <button
-                    onClick={testAdminRestricted}
-                    disabled={adminTesting}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-medium text-sm transition-all shadow-lg shadow-emerald-500/15 disabled:opacity-50"
-                  >
-                    {adminTesting ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Invoking Secure API...
-                      </>
-                    ) : (
-                      `Verify Admin Authorization (${user.role})`
-                    )}
-                  </button>
-
-                  {adminResult && (
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">API Response Status</span>
-                        {adminResult.success ? (
-                          <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
-                            200 OK - GRANTED
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/25">
-                            403 FORBIDDEN - BLOCKED
-                          </span>
-                        )}
-                      </div>
-                      <pre className="p-4 bg-slate-950 border border-slate-900 rounded-xl text-xs font-mono overflow-auto max-h-[140px] text-emerald-400">
-                        {JSON.stringify(adminResult, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Console / Log Terminal */}
-            <div className="rounded-2xl border border-slate-800/80 bg-slate-950/40 p-6 flex flex-col">
-              <h2 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-sky-400" /> Developer Log Terminal
+              <h2 className="text-3xl font-black tracking-tight text-white">
+                Every report. Every prescription. One intelligent profile.
               </h2>
-              <p className="text-sm text-slate-400 mb-4">Real-time scaffolding activity log.</p>
-              <div className="flex-1 min-h-[200px] bg-slate-950 border border-slate-900 rounded-xl p-4 font-mono text-xs text-slate-300 overflow-y-auto space-y-1.5 shadow-inner">
-                {error && <div className="text-rose-400 font-bold">{error}</div>}
-                {consoleLogs.map((log, idx) => (
-                  <div key={idx} className={log.includes("operational") || log.includes("round-trip") || log.includes("SUCCESS") ? "text-emerald-400" : log.includes("OUTAGE") || log.includes("BLOCKED") ? "text-amber-400" : "text-slate-400"}>
-                    {log}
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Aethera transforms paper documents and conversational voice history into structured clinical intelligence before consultation.
+              </p>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
+              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl text-center">
+                <span className="text-xl font-black text-teal-300">98.4</span>
+                <span className="block text-[10px] text-slate-400 font-bold uppercase">Health Score</span>
+              </div>
+              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl text-center">
+                <span className="text-xl font-black text-cyan-300">100%</span>
+                <span className="block text-[10px] text-slate-400 font-bold uppercase">Traceable OCR</span>
+              </div>
+              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl text-center">
+                <span className="text-xl font-black text-emerald-300">DPDP</span>
+                <span className="block text-[10px] text-slate-400 font-bold uppercase">Consent Ready</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TAB 1: PATIENT INTAKE KIOSK */}
+        {activeTab === 'intake' && (
+          <div className="animate-in fade-in duration-300">
+            <MediKioskIntake />
+          </div>
+        )}
+
+        {/* TAB 2: DOCTOR WORKSPACE */}
+        {activeTab === 'doctor' && (
+          <div className="animate-in fade-in duration-300">
+            <DoctorWorkspace />
+          </div>
+        )}
+
+        {/* TAB 3: PLATFORM OVERVIEW (Matching aetheraa.vercel.app Feature Sections) */}
+        {activeTab === 'overview' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Feature Transformation Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 bg-slate-950/80 border border-slate-850 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">From: Static Medical Records</span>
+                  <span className="text-xs font-bold text-teal-400 flex items-center gap-1">To: Living Intelligence <ArrowUpRight className="w-4 h-4" /></span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Raw medical documents, lab PDFs, and handwritten prescriptions are automatically extracted into structured clinical intelligence available anytime.
+                </p>
+                <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-xs font-mono text-teal-300 flex items-center justify-between">
+                  <span>Docling OCR + Groq LLM Extraction</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-950/80 border border-slate-850 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">From: Full Records Request</span>
+                  <span className="text-xs font-bold text-teal-400 flex items-center gap-1">To: Purpose-Specific Sharing <ArrowUpRight className="w-4 h-4" /></span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Eliminate data over-sharing. Only purpose-specific medical parameters requested by authorized healthcare providers are retrieved.
+                </p>
+                <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-xs font-mono text-teal-300 flex items-center justify-between">
+                  <span>DPDP Act 2023 Granular Keys</span>
+                  <Lock className="w-4 h-4 text-teal-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Purpose-Specific Sharing Showcase */}
+            <div className="p-6 bg-slate-950/90 border border-slate-850 rounded-3xl space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-teal-400" />
+                    Interactive Purpose-Specific Sharing Demonstration
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">Select specialty request to view authorized data vs redacted private data</p>
+                </div>
+                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+                  <button
+                    onClick={() => setPurposeSpecialty('cardiology')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                      purposeSpecialty === 'cardiology' ? 'bg-teal-500 text-slate-950 font-extrabold shadow' : 'text-slate-400'
+                    }`}
+                  >
+                    Cardiology Request
+                  </button>
+                  <button
+                    onClick={() => setPurposeSpecialty('endocrinology')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                      purposeSpecialty === 'endocrinology' ? 'bg-cyan-500 text-slate-950 font-extrabold shadow' : 'text-slate-400'
+                    }`}
+                  >
+                    Endocrinology Request
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Authorized Data Shared */}
+                <div className="p-5 bg-emerald-500/5 border border-emerald-500/30 rounded-2xl space-y-3">
+                  <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase">
+                    <CheckCircle2 className="w-4 h-4" /> Authorized Data Shared ({purposeSpecialty})
+                  </span>
+                  <div className="space-y-2 text-xs">
+                    {purposeSpecialty === 'cardiology' ? (
+                      <>
+                        <div className="p-2.5 bg-slate-900 rounded-xl flex justify-between font-mono"><span>Blood Pressure History</span><span className="text-emerald-300 font-bold">120/80 mmHg</span></div>
+                        <div className="p-2.5 bg-slate-900 rounded-xl flex justify-between font-mono"><span>Lipid Panel / Cholesterol</span><span className="text-emerald-300 font-bold">185 mg/dL</span></div>
+                        <div className="p-2.5 bg-slate-900 rounded-xl flex justify-between font-mono"><span>ECG Diagnostic Trace</span><span className="text-emerald-300 font-bold">Normal Sinus</span></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-2.5 bg-slate-900 rounded-xl flex justify-between font-mono"><span>HbA1c Blood Test</span><span className="text-emerald-300 font-bold">8.4% (Elevated)</span></div>
+                        <div className="p-2.5 bg-slate-900 rounded-xl flex justify-between font-mono"><span>Fasting Plasma Glucose</span><span className="text-emerald-300 font-bold">142 mg/dL</span></div>
+                        <div className="p-2.5 bg-slate-900 rounded-xl flex justify-between font-mono"><span>Diabetes Medications</span><span className="text-emerald-300 font-bold">Metformin 500mg</span></div>
+                      </>
+                    )}
                   </div>
-                ))}
-                {consoleLogs.length === 0 && <div className="text-slate-600">Console is idle. Status checks will print here.</div>}
+                </div>
+
+                {/* Private Medical Data Protected */}
+                <div className="p-5 bg-rose-500/5 border border-rose-500/30 rounded-2xl space-y-3">
+                  <span className="text-xs font-bold text-rose-400 flex items-center gap-1.5 uppercase">
+                    <Lock className="w-4 h-4" /> Private Medical Data Protected (Redacted)
+                  </span>
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 bg-slate-900/60 rounded-xl flex justify-between font-mono text-slate-500"><span>Unrelated Prescriptions</span><span className="text-rose-400 font-bold">[REDACTED]</span></div>
+                    <div className="p-2.5 bg-slate-900/60 rounded-xl flex justify-between font-mono text-slate-500"><span>Unrelated Surgical Notes</span><span className="text-rose-400 font-bold">[REDACTED]</span></div>
+                    <div className="p-2.5 bg-slate-900/60 rounded-xl flex justify-between font-mono text-slate-500"><span>Full PDF Document Archive</span><span className="text-rose-400 font-bold">[REDACTED]</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Architecture Trust FAQ Section */}
+            <div className="p-6 bg-slate-950/80 border border-slate-850 rounded-3xl space-y-4">
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-teal-400" />
+                Security & Architecture FAQs
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-1">
+                  <span className="font-bold text-teal-300 block">How does Aethera enforce DPDP & ABDM compliance?</span>
+                  <p className="text-slate-400 leading-relaxed">
+                    Aethera decouples Personal Identifying Information (PII) from clinical parameters. Granular consent keys ensure patients maintain total control.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-1">
+                  <span className="font-bold text-teal-300 block">How are documents converted into structured intelligence?</span>
+                  <p className="text-slate-400 leading-relaxed">
+                    Docling OCR extracts text from multi-page PDFs or photos, while Groq LLM synthesizes structured SOAP summaries with abnormal lab flags.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Footer */}
-        <footer className="text-center text-xs text-slate-600 mt-12 py-4 border-t border-slate-900/60">
-          HospitalOS Internal Portal • Connected to MongoDB and FastAPI AI Services.
+        {/* Footer (Matching aetheraa.vercel.app footer statement) */}
+        <footer className="flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 py-6 border-t border-slate-850/80 gap-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <p>© 2026 Aethera Technologies. Sovereign clinical data operating fabric.</p>
+          </div>
+          <div className="flex items-center gap-4 text-[11px] font-medium text-slate-400">
+            <span>DPDP Act 2023 Compliant</span>
+            <span>ABDM FHIR Standards</span>
+            <span>API: {health?.status === 'UP' ? 'Operational' : 'Fallback Mode'}</span>
+          </div>
         </footer>
       </div>
     </div>
