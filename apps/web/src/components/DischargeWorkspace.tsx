@@ -22,23 +22,12 @@ interface Consultation {
   updatedAt: string;
 }
 
-interface Discharge {
-  _id: string;
-  patientId: string;
-  consultationId: string;
-  dischargeInstructions: string;
-  medications: string[];
-  followUpRecommendations: string;
-  status: string;
-  createdAt: string;
-}
-
 interface DischargeWorkspaceProps {
   token: string | null;
   addLog: (msg: string) => void;
 }
 
-export default function DischargeWorkspace({ token, addLog }: DischargeWorkspaceProps) {
+export default function DischargeWorkspace({ token: _token, addLog }: DischargeWorkspaceProps) {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
 
