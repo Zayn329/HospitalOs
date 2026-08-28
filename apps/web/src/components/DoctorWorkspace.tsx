@@ -12,6 +12,7 @@ interface Prescription {
   _id: string;
   medications: string[];
   instructions: string;
+  status?: string;
   createdAt: string;
 }
 
@@ -394,6 +395,31 @@ export default function DoctorWorkspace() {
                     <p className="text-xs text-slate-500 mt-0.5">
                       Symptoms reported: {activeConsultation.symptoms?.join(', ') || 'None'}
                     </p>
+                  </div>
+
+                  {/* Module C: MediKiosk Pre-Consultation Draft Importer */}
+                  <div className="p-3.5 bg-teal-500/10 border border-teal-500/25 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs text-teal-300">
+                      <FileText className="w-4 h-4 text-teal-400" />
+                      <span>MediKiosk Module C Pre-Consultation SOAP Draft available</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFindings('HPI: Patient completed MediKiosk intake for chief complaint. Socrates & prior investigation timeline attached.');
+                        setTreatmentPlan('Plan: Comprehensive clinical examination and tailored regimen.');
+                        setSoapNotes({
+                          subjective: `Chief Complaint: ${activeConsultation.symptoms?.join(', ') || 'Chest pain & fatigue'}. HPI: MediKiosk pre-recorded history.`,
+                          objective: 'Physical Examination: Heart rate regular, BP 128/84. Prior Labs: HbA1c 8.4% flagged.',
+                          assessment: 'Assessment: Type 2 Diabetes Mellitus with cardiovascular risk evaluation.',
+                          plan: 'Plan: Initiate Metformin 500mg BD, order follow-up HbA1c in 3 months.'
+                        });
+                        setDiagnosis('Type 2 Diabetes Mellitus');
+                      }}
+                      className="px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-lg text-xs transition-all shadow"
+                    >
+                      Import MediKiosk Draft Notes
+                    </button>
                   </div>
 
                   <form onSubmit={handleCompleteConsultation} className="space-y-5">

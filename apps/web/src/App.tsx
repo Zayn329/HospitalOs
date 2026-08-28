@@ -10,6 +10,8 @@ import MedicalDocumentation from './components/MedicalDocumentation.tsx';
 import DiagnosticsConsole from './components/DiagnosticsConsole.tsx';
 import BillingConsole from './components/BillingConsole.tsx';
 import DischargeWorkspace from './components/DischargeWorkspace.tsx';
+import HospitalAnalytics from './components/HospitalAnalytics.tsx';
+import { MediKioskIntake } from './components/MediKioskIntake.tsx';
 
 interface HealthDetails {
   api: 'UP' | 'DOWN';
@@ -50,7 +52,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge'>('appointments');
+  const [activeTab, setActiveTab] = useState<'health' | 'registration' | 'appointments' | 'checkin' | 'triage' | 'consultation' | 'documentation' | 'diagnostics' | 'billing' | 'discharge' | 'analytics' | 'medikiosk'>('medikiosk');
 
   // Diagnostics State
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -237,7 +239,7 @@ export default function App() {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="w-full max-w-5xl mx-auto z-10 flex-1 flex flex-col justify-between">
+      <div className="w-full max-w-7xl mx-auto z-10 flex-1 flex flex-col justify-between">
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 pb-6 border-b border-slate-900">
           <div className="flex items-center gap-3">
@@ -257,9 +259,9 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 max-w-full overflow-x-auto">
             {/* Navigation Tabs */}
-            <div className="flex bg-slate-950 border border-slate-850 rounded-xl p-1">
+            <div className="flex bg-slate-950 border border-slate-850 rounded-xl p-1 overflow-x-auto max-w-full">
               <button
                 onClick={() => setActiveTab('appointments')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'appointments' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
@@ -322,6 +324,20 @@ export default function App() {
               >
                 <LogOut className="w-4 h-4" />
                 Patient Discharge
+              </button>
+              <button
+                onClick={() => setActiveTab('medikiosk')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'medikiosk' ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Cpu className="w-4 h-4 text-teal-400" />
+                MediKiosk Intake
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-gradient-to-r from-sky-500/20 to-indigo-500/20 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                <Activity className="w-4 h-4" />
+                Hospital Analytics
               </button>
               <button
                 onClick={() => setActiveTab('health')}
@@ -440,6 +456,16 @@ export default function App() {
         {/* Tab 1.12: Patient Discharge */}
         {activeTab === 'discharge' && (
           <DischargeWorkspace token={token} addLog={addLog} />
+        )}
+
+        {/* Tab 1.13: MediKiosk Intake */}
+        {activeTab === 'medikiosk' && (
+          <MediKioskIntake />
+        )}
+
+        {/* Tab 1.14: Hospital Analytics */}
+        {activeTab === 'analytics' && (
+          <HospitalAnalytics />
         )}
 
         {/* Tab 2: System Diagnostics */}
