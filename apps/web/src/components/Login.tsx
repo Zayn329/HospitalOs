@@ -68,10 +68,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </div>
 
         {/* Title */}
-        <h2 className="text-2xl font-bold text-center text-slate-100 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-          Sign In to HospitalOS
+        <h2 className="text-2xl font-bold text-center text-slate-100 bg-gradient-to-r from-teal-300 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+          Sign In to Aethera
         </h2>
-        <p className="text-xs text-center text-slate-500 mt-1 mb-8">Enter your secure hospital account credentials</p>
+        <p className="text-xs text-center text-slate-500 mt-1 mb-8">Aethera - AI Clinical Intake Platform</p>
 
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-3 text-sm">

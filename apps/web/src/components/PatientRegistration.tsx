@@ -425,7 +425,7 @@ export default function PatientRegistration() {
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <h3 className="text-xl font-bold text-slate-100">Patient Registered</h3>
-              <p className="text-sm text-slate-400 mt-1">Profile created successfully inside HospitalOS.</p>
+              <p className="text-sm text-slate-400 mt-1">Profile created successfully inside Aethera.</p>
               
               <div className="w-full bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 my-6 text-left">
                 <div className="text-xs text-sky-400 font-semibold uppercase tracking-wider">Hospital ID</div>
