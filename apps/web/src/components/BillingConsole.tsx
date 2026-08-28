@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, FileText, CreditCard, ShieldCheck, Cpu, CheckCircle, XCircle, RefreshCw, ChevronRight, HelpCircle } from 'lucide-react';
+import { DollarSign, FileText, CreditCard, ShieldCheck, Cpu, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 
 interface Bill {
   _id: string;
@@ -39,7 +39,7 @@ interface BillingConsoleProps {
   addLog: (msg: string) => void;
 }
 
-export default function BillingConsole({ token, addLog }: BillingConsoleProps) {
+export default function BillingConsole({ token: _token, addLog }: BillingConsoleProps) {
   const [bills, setBills] = useState<Bill[]>([]);
   const [completedConsultations, setCompletedConsultations] = useState<CompletedConsultation[]>([]);
   

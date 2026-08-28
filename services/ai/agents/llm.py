@@ -49,7 +49,7 @@ def call_llm(system_prompt: str, user_prompt: str = "", temperature: float = 0.2
         messages.append({"role": "user", "content": user_prompt})
 
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b",
         "messages": messages,
         "temperature": temperature
     }

@@ -246,7 +246,7 @@ router.patch('/appointments/:id/cancel', async (req: Request, res: Response, nex
       .populate('patientId', 'firstName lastName hospitalId')
       .populate('doctorId', 'firstName lastName specialization department');
 
-    const doctor = populated.doctorId as any;
+    const doctor = populated?.doctorId as any;
 
     // Find other active appointments scheduled for the same doctor and same day but at a later time
     const laterAppointments = await Appointment.find({

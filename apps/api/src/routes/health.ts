@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDbConnectionStatus } from '../config/db.js';
 import { checkAIServiceHealth } from '../services/ai.js';
-import { HealthStatus } from '@hospitalos/shared';
 
 const router = Router();
 
